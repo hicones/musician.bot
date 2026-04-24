@@ -38,12 +38,23 @@ db.exec(`
     guild_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     title TEXT NOT NULL,
-    url TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
     duration TEXT,
     thumbnail TEXT,
-    favorited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (guild_id, url)
+    favorited_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+`);
+
+db.exec(`
+  DELETE FROM favorite_songs
+  WHERE id NOT IN (
+    SELECT MIN(id)
+    FROM favorite_songs
+    GROUP BY url
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS favorite_songs_url_unique
+  ON favorite_songs (url);
 `);
 
 export interface GuildConfig {

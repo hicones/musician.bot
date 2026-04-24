@@ -31,6 +31,10 @@ export const handleReaction = async (
 
   const emojiName = reaction.emoji.name;
   if (!emojiName) return;
+  if (!queue && emojiName === FAVORITE_EMOJI) {
+    await sendTemporaryFeedback(channel, user.id, "nao ha musica tocando agora para favoritar.");
+    return;
+  }
   if (!queue && emojiName !== LEAVE_EMOJI) return;
 
   switch (emojiName) {
@@ -66,7 +70,7 @@ export const handleReaction = async (
       break;
     case FAVORITE_EMOJI:
       if (!isAdminUser(user.id)) {
-        console.warn(`[Favorites] Usuario sem permissao tentou favoritar musica: ${user.tag}`);
+        await sendTemporaryFeedback(channel, user.id, "voce nao tem permissao para favoritar musicas.");
         break;
       }
 
@@ -74,7 +78,7 @@ export const handleReaction = async (
 
       const currentSong = queue.songs[0];
       if (!currentSong.url) {
-        console.warn(`[Favorites] Musica atual sem URL nao foi favoritada: "${currentSong.name}"`);
+        await sendTemporaryFeedback(channel, user.id, "nao consegui favoritar essa musica porque ela nao tem URL.");
         break;
       }
 
@@ -87,9 +91,17 @@ export const handleReaction = async (
         thumbnail: currentSong.thumbnail,
       });
 
-      console.log(
-        `[Favorites] ${saved ? "Musica favoritada" : "Musica ja favoritada"}: "${currentSong.name}" por ${user.tag}`,
+      await sendTemporaryFeedback(
+        channel,
+        user.id,
+        saved
+          ? `musica favoritada: **${currentSong.name || "Sem titulo"}**.`
+          : `essa musica ja estava nos favoritos: **${currentSong.name || "Sem titulo"}**.`,
       );
+
+      if (saved) {
+        console.log(`[Favorites] Musica favoritada: "${currentSong.name || "Sem titulo"}" por ${user.tag}`);
+      }
       break;
     case LEAVE_EMOJI:
       musicManager.distube.voices.get(guildId)?.leave();
@@ -107,4 +119,19 @@ const isAdminUser = (userId: string): boolean => {
     .filter(Boolean) || [];
 
   return adminIds.includes(userId);
+};
+
+const sendTemporaryFeedback = async (
+  channel: TextChannel,
+  userId: string,
+  message: string,
+) => {
+  const response = await channel.send({
+    content: `<@${userId}>, ${message}`,
+    allowedMentions: { users: [userId] },
+  });
+
+  setTimeout(() => {
+    response.delete().catch(() => {});
+  }, 8000);
 };
