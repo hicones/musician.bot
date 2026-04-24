@@ -86,6 +86,11 @@ export const handleInteraction = async (
           .setCustomId("play_playlist")
           .setLabel("Tocar Playlist")
           .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId("start_radio")
+          .setLabel("Rádio")
+          .setEmoji("📻")
+          .setStyle(ButtonStyle.Success),
       );
 
       await interaction.update({ embeds: [embed], components: [row] });
@@ -139,6 +144,11 @@ export const handleInteraction = async (
       await interaction.reply({
         content: "Selecione uma playlist para tocar:",
         components: [row],
+        ephemeral: true,
+      });
+    } else if (interaction.customId === "start_radio") {
+      await interaction.reply({
+        content: "Funcionalidade de rádio ainda não implementada!",
         ephemeral: true,
       });
     }

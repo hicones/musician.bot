@@ -5,6 +5,7 @@ import { createPlayerEmbed, getPlayerAttachments } from '../utils/playerEmbed';
 import { formatError } from '../utils/formatError';
 import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
 import { SafeSpotifyPlugin, SafeSpotifyPluginOptions } from './SafeSpotifyPlugin';
+import { ActivityManager } from '../activity/ActivityManager';
 
 export interface PlayedSong {
   title: string;
@@ -14,6 +15,7 @@ export interface PlayedSong {
 
 export class MusicManager {
   public distube: DisTube;
+  public activityManager: ActivityManager;
   private playedSongs: Map<string, Song[]> = new Map(); // guildId -> Song[]
 
   constructor(client: Client) {
@@ -25,6 +27,7 @@ export class MusicManager {
       ],
     });
 
+    this.activityManager = new ActivityManager(this.distube);
     this.setupEvents();
   }
 

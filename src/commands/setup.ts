@@ -137,6 +137,11 @@ const performSetup = async (
           .setLabel("Tocar Playlist")
           .setEmoji("🎵")
           .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId("start_radio")
+          .setLabel("Rádio")
+          .setEmoji("📻")
+          .setStyle(ButtonStyle.Success),
       );
 
       const msg = await channel.send({
