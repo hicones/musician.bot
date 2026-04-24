@@ -9,13 +9,14 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { createPlayerEmbed, getPlayerAttachments, getPlayerButtons } from "../utils/playerEmbed";
-import { MusicManager } from "../music/MusicManager";
+import { createPlayerEmbed, getPlayerAttachments, getPlayerButtons } from "../utils/player-embed";
+import { MusicManager } from "../music/music-manager";
 import {
   getGuildConfig,
   saveGuildConfig,
   updatePlayerMessageId,
 } from "../database/db";
+import { isAdminUser } from "../utils/auth";
 
 export const setupCommandData = new SlashCommandBuilder()
   .setName("setup")
@@ -34,11 +35,6 @@ interface SetupResult {
   channelId?: string;
   messageId?: string;
 }
-
-const isAdminUser = (userId: string): boolean => {
-  const adminIds = process.env.ADMIN_USER_IDS?.split(",") || [];
-  return adminIds.includes(userId);
-};
 
 const createStepEmbed = (
   title: string,
