@@ -227,6 +227,10 @@ export class ActivityManager {
     };
   }
 
+  public getInactivityTimeoutMs(): number {
+    return this.INACTIVITY_TIMEOUT;
+  }
+
   public forceDisconnect(guildId: string): void {
     const queue = this.distube.getQueue(guildId);
     if (queue) {

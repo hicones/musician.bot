@@ -5,6 +5,7 @@ import {
   TextChannel,
   REST,
   Routes,
+  VoiceState,
 } from "discord.js";
 import dotenv from "dotenv";
 import { MusicManager } from "./music/MusicManager";
@@ -27,6 +28,7 @@ const client = new Client({
 });
 
 const musicManager = new MusicManager(client);
+const emptyVoiceTimeouts = new Map<string, NodeJS.Timeout>();
 
 const getMusicRequestType = (input: string) => {
   if (
@@ -151,4 +153,86 @@ client.on("interactionCreate", async (interaction) => {
   await handleInteraction(interaction, musicManager);
 });
 
+client.on("voiceStateUpdate", async (oldState, newState) => {
+  await handleEmptyVoiceChannel(oldState, newState);
+});
+
 client.login(process.env.DISCORD_TOKEN);
+
+const handleEmptyVoiceChannel = async (
+  oldState: VoiceState,
+  newState: VoiceState,
+) => {
+  const guildId = newState.guild.id;
+  const queue = musicManager.distube.getQueue(guildId);
+  if (!queue?.voiceChannel) {
+    clearEmptyVoiceTimeout(guildId);
+    return;
+  }
+
+  const affectedChannelId = oldState.channelId || newState.channelId;
+  if (!affectedChannelId || affectedChannelId !== queue.voiceChannel.id) {
+    return;
+  }
+
+  const voiceChannel = queue.voiceChannel;
+  const humanMembers = voiceChannel.members.filter((member) => !member.user.bot);
+  if (humanMembers.size > 0) {
+    clearEmptyVoiceTimeout(guildId);
+    return;
+  }
+
+  if (emptyVoiceTimeouts.has(guildId)) {
+    return;
+  }
+
+  const timeoutMs = musicManager.activityManager.getInactivityTimeoutMs();
+  const timeout = setTimeout(() => {
+    void disconnectIfVoiceChannelStillEmpty(guildId);
+  }, timeoutMs);
+
+  emptyVoiceTimeouts.set(guildId, timeout);
+  console.log(
+    `[Voice] Call vazia em "${voiceChannel.name}" de "${voiceChannel.guild.name}". Desconexao agendada para ${Math.round(timeoutMs / 1000)}s.`,
+  );
+};
+
+const disconnectIfVoiceChannelStillEmpty = async (guildId: string) => {
+  clearEmptyVoiceTimeout(guildId);
+
+  const queue = musicManager.distube.getQueue(guildId);
+  const voiceChannel = queue?.voiceChannel;
+  if (!queue || !voiceChannel) {
+    return;
+  }
+
+  const humanMembers = voiceChannel.members.filter((member) => !member.user.bot);
+  if (humanMembers.size > 0) {
+    return;
+  }
+
+  musicManager.disableRadioMode(guildId);
+  musicManager.clearHistory(guildId);
+  musicManager.activityManager.clearActivity(guildId);
+
+  try {
+    queue.voice.leave();
+    console.log(
+      `[Voice] Bot saiu de "${voiceChannel.name}" em "${voiceChannel.guild.name}" por nao haver usuarios na call apos o timeout de inatividade`,
+    );
+  } catch (error) {
+    console.warn(
+      `[Voice] Erro ao sair da call vazia em ${voiceChannel.guild.name}: ${(error as Error).message}`,
+    );
+  }
+};
+
+const clearEmptyVoiceTimeout = (guildId: string) => {
+  const timeout = emptyVoiceTimeouts.get(guildId);
+  if (!timeout) {
+    return;
+  }
+
+  clearTimeout(timeout);
+  emptyVoiceTimeouts.delete(guildId);
+};
