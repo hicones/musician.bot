@@ -32,6 +32,18 @@ db.exec(`
     thumbnail TEXT,
     FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS favorite_songs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    duration TEXT,
+    thumbnail TEXT,
+    favorited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (guild_id, url)
+  );
 `);
 
 export interface GuildConfig {
@@ -56,6 +68,11 @@ export interface SongData {
   url: string;
   duration?: string;
   thumbnail?: string;
+}
+
+export interface FavoriteSongData extends SongData {
+  guildId: string;
+  userId: string;
 }
 
 export const savePlaylist = (
@@ -102,6 +119,21 @@ export const getPlaylistSongs = (playlistId: number): SongData[] => {
       "SELECT title, url, duration, thumbnail FROM playlist_songs WHERE playlist_id = ?",
     )
     .all(playlistId) as SongData[];
+};
+
+export const saveFavoriteSong = (song: FavoriteSongData) => {
+  const info = db.prepare(
+    "INSERT OR IGNORE INTO favorite_songs (guild_id, user_id, title, url, duration, thumbnail) VALUES (?, ?, ?, ?, ?, ?)",
+  ).run(
+    song.guildId,
+    song.userId,
+    song.title,
+    song.url,
+    song.duration,
+    song.thumbnail,
+  );
+
+  return info.changes > 0;
 };
 
 // Guild config management

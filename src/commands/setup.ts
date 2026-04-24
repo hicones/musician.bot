@@ -152,7 +152,16 @@ const performSetup = async (
 
     // Step 4: Adicionar reações
     const reactionsStart = Date.now();
-    const emojis = ["⏮️", "▶️", "⏭️", "⏹️", "🔀", "🔁", "🚪"];
+    const emojis = [
+      "\u23EE\uFE0F",
+      "\u25B6\uFE0F",
+      "\u23ED\uFE0F",
+      "\u23F9\uFE0F",
+      "\u{1F500}",
+      "\u{1F501}",
+      "\u{1F31F}",
+      "\u{1F6AA}",
+    ];
     let reactionsAdded = 0;
 
     try {
