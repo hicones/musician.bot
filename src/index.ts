@@ -4,6 +4,7 @@ import { MusicManager } from './music/MusicManager';
 import { setupCommand } from './commands/setup';
 import { handleReaction } from './handlers/reactionHandler';
 import { handleInteraction } from './handlers/interactionHandler';
+import { formatError } from './utils/formatError';
 
 dotenv.config();
 
@@ -61,7 +62,8 @@ client.on('messageCreate', async (message) => {
         // Delete original message to keep channel clean
         await message.delete().catch(() => {});
       } catch (e) {
-        console.error(`[Music Error] Erro ao tentar tocar URL:`, e);
+        console.error(`[Music Error] Erro ao tentar tocar URL:`);
+        console.error(formatError(e));
       }
     }
   }
