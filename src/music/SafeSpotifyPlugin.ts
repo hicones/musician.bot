@@ -116,16 +116,35 @@ export class SafeSpotifyPlugin extends SpotifyPlugin {
       throw new Error('Credenciais Spotify ausentes.');
     }
 
-    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-    const bodyParams = this.refreshToken
-      ? new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: this.refreshToken,
-      })
-      : new URLSearchParams({
-        grant_type: 'client_credentials',
-      });
+    if (this.refreshToken) {
+      try {
+        return await this.requestAccessToken(
+          new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: this.refreshToken,
+          }),
+          'refresh_token',
+        );
+      } catch (error) {
+        console.warn('[Spotify] Falha ao usar SPOTIFY_REFRESH_TOKEN. Tentando client_credentials.');
+        console.warn(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+      }
+    }
 
+    return this.requestAccessToken(
+      new URLSearchParams({
+        grant_type: 'client_credentials',
+      }),
+      'client_credentials',
+    );
+  }
+
+  private async requestAccessToken(bodyParams: URLSearchParams, grantType: string) {
+    if (!this.clientId || !this.clientSecret) {
+      throw new Error('Credenciais Spotify ausentes.');
+    }
+
+    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -136,13 +155,25 @@ export class SafeSpotifyPlugin extends SpotifyPlugin {
     });
 
     if (!response.ok) {
-      throw new Error(`Falha ao obter token Spotify (${response.status} ${response.statusText}).`);
+      const details = await this.readErrorBody(response);
+      throw new Error(
+        `Falha ao obter token Spotify via ${grantType} (${response.status} ${response.statusText})${details ? `: ${details}` : ''}.`,
+      );
     }
 
     const body = await response.json() as { access_token: string; expires_in: number };
     this.token = body.access_token;
     this.tokenExpiresAt = Date.now() + body.expires_in * 1000 - 5000;
     return this.token;
+  }
+
+  private async readErrorBody(response: Response) {
+    try {
+      const body = await response.json() as { error?: string; error_description?: string };
+      return [body.error, body.error_description].filter(Boolean).join(' - ');
+    } catch {
+      return '';
+    }
   }
 
   private async fetchPlaylistTracks(playlistId: string, token: string) {
