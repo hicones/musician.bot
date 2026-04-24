@@ -3,9 +3,10 @@ import { Queue, Song } from "distube";
 import path from "path";
 
 const EMBED_DESCRIPTION_LIMIT = 4096;
-const QUEUE_HEADER = "**Fila Atual**\n\n";
+const QUEUE_HEADER = "**Fila Atual**\n";
 const QUEUE_FOOTER_RESERVE = 140;
 const QUEUE_LIST_LIMIT = EMBED_DESCRIPTION_LIMIT - QUEUE_HEADER.length - QUEUE_FOOTER_RESERVE;
+export const QUEUE_PAGE_SIZE = 50;
 
 export const BANNER_PATH = path.join(__dirname, "../../assets/banner.png");
 export const PLACEHOLDER_PATH = path.join(
@@ -17,6 +18,7 @@ export const createPlayerEmbed = (
   queue: Queue | undefined,
   history: Song[],
   showQueue: boolean = false,
+  queuePage: number = 0,
 ) => {
   const embed = new EmbedBuilder()
     .setColor("#5865F2")
@@ -34,12 +36,17 @@ export const createPlayerEmbed = (
 
   if (showQueue) {
     const queueLines = buildQueueLines(queue, history, currentSong);
-    const { visibleLines, hiddenCount } = fitQueueLines(queueLines);
+    const pageInfo = getQueuePageInfo(queue, history, queuePage);
+    const pageStart = pageInfo.page * QUEUE_PAGE_SIZE;
+    const pageLines = queueLines.slice(pageStart, pageStart + QUEUE_PAGE_SIZE);
+    const { visibleLines, hiddenCount } = fitQueueLines(pageLines);
     const queueList = visibleLines.join("\n");
-    const hiddenText = hiddenCount > 0 ? `\n\n... e mais ${hiddenCount} musicas na fila.` : "";
+    const hiddenText = hiddenCount > 0
+      ? "\n\nAlguns itens desta pagina foram ocultados pelo limite do Discord."
+      : "";
 
     embed.setDescription(
-      `${QUEUE_HEADER}${queueList || "Nenhuma musica na fila."}${hiddenText}`,
+      `${QUEUE_HEADER}Pagina ${pageInfo.page + 1}/${pageInfo.totalPages} - ${pageInfo.totalItems} musicas\n\n${queueList || "Nenhuma musica na fila."}${hiddenText}`,
     );
   } else {
     embed.setDescription(
@@ -70,6 +77,32 @@ export const createPlayerEmbed = (
   }
 
   return embed;
+};
+
+export const getQueuePageInfo = (
+  queue: Queue | undefined,
+  history: Song[],
+  requestedPage: number = 0,
+) => {
+  if (!queue || !queue.songs.length) {
+    return {
+      page: 0,
+      totalPages: 1,
+      totalItems: 0,
+    };
+  }
+
+  const queueLines = buildQueueLines(queue, history, queue.songs[0]);
+  const totalItems = queueLines.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / QUEUE_PAGE_SIZE));
+  const safeRequestedPage = Number.isFinite(requestedPage) ? requestedPage : 0;
+  const page = Math.min(Math.max(Math.trunc(safeRequestedPage), 0), totalPages - 1);
+
+  return {
+    page,
+    totalPages,
+    totalItems,
+  };
 };
 
 const buildQueueLines = (queue: Queue, history: Song[], currentSong: Song) => {
