@@ -37,14 +37,17 @@ export class MusicManager {
         console.log(`[Music] Tocando agora: "${song.name}" em "${queue.textChannel?.guild.name}"`);
         this.addToPlayed(queue.id!, song);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onPlaySong(queue);
       })
       .on('addSong', (queue: any, song: any) => {
         console.log(`[Music] Música adicionada: "${song.name}" por ${song.user?.tag}`);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onAddSong(queue);
       })
       .on('addList', (queue: any, playlist: any) => {
         console.log(`[Music] Playlist adicionada: "${playlist.name}" (${playlist.songs.length} músicas)`);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onAddList(queue);
       })
       .on('error', (error: Error, queue: any, song?: Song) => {
         const guildName = queue?.textChannel?.guild?.name || queue?.id || 'desconhecido';
@@ -55,6 +58,15 @@ export class MusicManager {
       .on('finish', (queue: any) => {
         console.log(`[Music] Fila finalizada em "${queue.textChannel?.guild.name}"`);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onFinish(queue);
+      })
+      .on('stop', (queue: any) => {
+        console.log(`[Music] Fila parada em "${queue.textChannel?.guild.name}"`);
+        this.activityManager.onStop(queue);
+      })
+      .on('disconnect', (queue: any) => {
+        console.log(`[Music] Bot desconectado em "${queue.textChannel?.guild.name}"`);
+        this.activityManager.onDisconnect(queue);
       });
   }
 
