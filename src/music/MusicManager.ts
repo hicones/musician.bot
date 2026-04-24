@@ -1,7 +1,7 @@
 import { Client, TextChannel } from 'discord.js';
 import { DisTube, Song } from 'distube';
 import { SoundCloudPlugin } from '@distube/soundcloud';
-import { createPlayerEmbed } from '../utils/playerEmbed';
+import { createPlayerEmbed, getPlayerAttachments } from '../utils/playerEmbed';
 import { formatError } from '../utils/formatError';
 import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
 import { SafeSpotifyPlugin, SafeSpotifyPluginOptions } from './SafeSpotifyPlugin';
@@ -51,6 +51,7 @@ export class MusicManager {
       })
       .on('finish', (queue: any) => {
         console.log(`[Music] Fila finalizada em "${queue.textChannel?.guild.name}"`);
+        this.updatePlayerMessage(queue.textChannel as TextChannel);
       });
   }
 
@@ -80,7 +81,22 @@ export class MusicManager {
       const queue = this.distube.getQueue(channel.guildId);
       const history = this.getHistory(channel.guildId);
       const embed = createPlayerEmbed(queue, history);
-      await controllerMsg.edit({ embeds: [embed] });
+      
+      const attachments = getPlayerAttachments();
+      const payload: any = { embeds: [embed] };
+
+      // Determine which file to attach based on the embed's image
+      const imageUrl = (embed.data as any).image?.url;
+      if (imageUrl === 'attachment://banner.png') {
+        payload.files = [attachments[0]];
+      } else if (imageUrl === 'attachment://placeholder.png') {
+        payload.files = [attachments[1]];
+      } else {
+        // If it's a URL (thumbnail), remove attachments to keep it clean
+        payload.files = [];
+      }
+
+      await controllerMsg.edit(payload);
     }
   }
 
