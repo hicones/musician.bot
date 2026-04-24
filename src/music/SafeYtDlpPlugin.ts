@@ -36,8 +36,8 @@ const isPlaylist = (info: YtDlpVideo | YtDlpPlaylist): info is YtDlpPlaylist => 
 };
 
 export class SafeYtDlpPlugin extends ExtractorPlugin {
-  validate() {
-    return true;
+  validate(url: string) {
+    return /^https?:\/\/(www\.)?(youtube\.com|youtu\.be|music\.youtube\.com)\//i.test(url);
   }
 
   async resolve<T>(url: string, options: ResolveOptions<T>) {
