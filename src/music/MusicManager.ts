@@ -17,6 +17,7 @@ export class MusicManager {
   public distube: DisTube;
   public activityManager: ActivityManager;
   private playedSongs: Map<string, Song[]> = new Map(); // guildId -> Song[]
+  private radioModeGuilds: Set<string> = new Set();
 
   constructor(client: Client) {
     this.distube = new DisTube(client, {
@@ -27,7 +28,10 @@ export class MusicManager {
       ],
     });
 
-    this.activityManager = new ActivityManager(this.distube);
+    this.activityManager = new ActivityManager(this.distube, {
+      enableRadioMode: (guildId) => this.enableRadioMode(guildId),
+      isRadioModeActive: (guildId) => this.isRadioModeActive(guildId),
+    });
     this.setupEvents();
   }
 
@@ -115,6 +119,18 @@ export class MusicManager {
 
   public clearHistory(guildId: string) {
     this.playedSongs.set(guildId, []);
+  }
+
+  public enableRadioMode(guildId: string) {
+    this.radioModeGuilds.add(guildId);
+  }
+
+  public disableRadioMode(guildId: string) {
+    this.radioModeGuilds.delete(guildId);
+  }
+
+  public isRadioModeActive(guildId: string) {
+    return this.radioModeGuilds.has(guildId);
   }
 
   private getSpotifyOptions(): SafeSpotifyPluginOptions {

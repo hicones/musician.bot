@@ -1,37 +1,47 @@
 import { DisTube } from "distube";
+import { getFavoriteSongs } from "../database/db";
 
 interface GuildActivity {
   guildId: string;
   lastActivityTime: number;
   inactivityTimeout: NodeJS.Timeout | null;
   isMonitoring: boolean;
+  voiceChannel?: any;
+  textChannel?: any;
+}
+
+interface ActivityManagerOptions {
+  enableRadioMode?: (guildId: string) => void;
+  isRadioModeActive?: (guildId: string) => boolean;
 }
 
 /**
- * Gerencia a atividade do bot em cada servidor
- * Auto-desconecta do canal de voz após 2 minutos de inatividade
+ * Gerencia a atividade do bot em cada servidor.
+ * Depois de um periodo de inatividade, inicia a radio com musicas favoritadas.
  */
 export class ActivityManager {
   private distube: DisTube;
+  private options: ActivityManagerOptions;
   private guildActivities: Map<string, GuildActivity> = new Map();
-  private readonly INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutos em ms
+  private readonly INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutos
   private readonly CHECK_INTERVAL = 5 * 1000; // Verificar a cada 5 segundos
 
-  constructor(distube: DisTube) {
+  constructor(distube: DisTube, options: ActivityManagerOptions = {}) {
     this.distube = distube;
+    this.options = options;
   }
 
   public onPlaySong(queue: any): void {
     this.recordActivity(queue.id!);
     console.log(
-      `[Activity] Atividade registrada: música tocando em ${queue.textChannel?.guild?.name}`,
+      `[Activity] Atividade registrada: musica tocando em ${queue.textChannel?.guild?.name}`,
     );
   }
 
   public onAddSong(queue: any): void {
     this.recordActivity(queue.id!);
     console.log(
-      `[Activity] Atividade registrada: música adicionada em ${queue.textChannel?.guild?.name}`,
+      `[Activity] Atividade registrada: musica adicionada em ${queue.textChannel?.guild?.name}`,
     );
   }
 
@@ -43,7 +53,11 @@ export class ActivityManager {
   }
 
   public onFinish(queue: any): void {
-    this.startMonitoringInactivity(queue.id!);
+    this.startMonitoringInactivity(
+      queue.id!,
+      queue.voiceChannel,
+      queue.textChannel,
+    );
     console.log(
       `[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name}`,
     );
@@ -56,9 +70,6 @@ export class ActivityManager {
     );
   }
 
-  /**
-   * Registra uma atividade (música tocando/adicionada)
-   */
   public recordActivity(guildId: string): void {
     const activity = this.guildActivities.get(guildId) || {
       guildId,
@@ -70,7 +81,6 @@ export class ActivityManager {
     activity.lastActivityTime = Date.now();
     activity.isMonitoring = false;
 
-    // Limpar timeout anterior se existir
     if (activity.inactivityTimeout) {
       clearInterval(activity.inactivityTimeout);
       activity.inactivityTimeout = null;
@@ -79,10 +89,11 @@ export class ActivityManager {
     this.guildActivities.set(guildId, activity);
   }
 
-  /**
-   * Inicia monitoramento de inatividade para um servidor
-   */
-  public startMonitoringInactivity(guildId: string): void {
+  public startMonitoringInactivity(
+    guildId: string,
+    voiceChannel?: any,
+    textChannel?: any,
+  ): void {
     let activity = this.guildActivities.get(guildId);
 
     if (!activity) {
@@ -90,25 +101,28 @@ export class ActivityManager {
         guildId,
         lastActivityTime: Date.now(),
         inactivityTimeout: null,
-        isMonitoring: true,
+        isMonitoring: false,
+        voiceChannel,
+        textChannel,
       };
     }
 
+    activity.voiceChannel = voiceChannel || activity.voiceChannel;
+    activity.textChannel = textChannel || activity.textChannel;
+
     if (activity.isMonitoring) {
-      return; // Já está monitorando
+      return;
     }
 
     activity.isMonitoring = true;
     activity.lastActivityTime = Date.now();
 
-    // Limpar timeout anterior se existir
     if (activity.inactivityTimeout) {
       clearInterval(activity.inactivityTimeout);
     }
 
-    // Iniciar verificação periódica
     activity.inactivityTimeout = setInterval(() => {
-      this.checkAndDisconnect(guildId);
+      void this.checkAndStartRadio(guildId);
     }, this.CHECK_INTERVAL);
 
     this.guildActivities.set(guildId, activity);
@@ -117,10 +131,7 @@ export class ActivityManager {
     );
   }
 
-  /**
-   * Verifica se o tempo de inatividade foi excedido e desconecta se necessário
-   */
-  private checkAndDisconnect(guildId: string): void {
+  private async checkAndStartRadio(guildId: string): Promise<void> {
     const activity = this.guildActivities.get(guildId);
 
     if (!activity || !activity.isMonitoring) {
@@ -128,34 +139,64 @@ export class ActivityManager {
     }
 
     const timeSinceLastActivity = Date.now() - activity.lastActivityTime;
+    if (timeSinceLastActivity < this.INACTIVITY_TIMEOUT) {
+      return;
+    }
 
-    // Se o tempo de inatividade foi excedido
-    if (timeSinceLastActivity >= this.INACTIVITY_TIMEOUT) {
-      const queue = this.distube.getQueue(guildId);
+    if (this.options.isRadioModeActive?.(guildId)) {
+      this.clearActivity(guildId);
+      return;
+    }
 
-      if (queue) {
-        try {
-          queue.voice?.leave();
-          console.log(
-            `[Activity] Bot desconectado por inatividade em ${queue.textChannel?.guild?.name} (${Math.round(timeSinceLastActivity / 1000)}s sem atividade)`,
-          );
-          this.clearActivity(guildId);
-        } catch (error) {
-          console.warn(
-            `[Activity] Erro ao desconectar por inatividade: ${(error as Error).message}`,
-          );
-        }
-      } else {
-        // Fila já não existe, limpar registro
-        this.clearActivity(guildId);
-        this.distube.voices.get(guildId)?.leave();
+    if (!activity.voiceChannel || !activity.textChannel) {
+      console.warn(
+        `[Activity] Nao foi possivel iniciar radio por inatividade: canais nao encontrados para ${guildId}`,
+      );
+      this.clearActivity(guildId);
+      return;
+    }
+
+    const favoriteSongs = shuffleSongs(getFavoriteSongs(guildId));
+    if (favoriteSongs.length === 0) {
+      console.warn(
+        `[Activity] Nao foi possivel iniciar radio por inatividade: nenhum favorito em ${guildId}`,
+      );
+      this.clearActivity(guildId);
+      return;
+    }
+
+    this.clearActivity(guildId);
+
+    let loadedSongs = 0;
+    for (const song of favoriteSongs) {
+      try {
+        await this.distube.play(activity.voiceChannel, song.url, {
+          textChannel: activity.textChannel,
+        });
+        loadedSongs++;
+      } catch (error) {
+        console.error(
+          `[Activity] Erro ao carregar favorito "${song.title}" na radio:`,
+          error,
+        );
       }
+    }
+
+    const radioQueue = this.distube.getQueue(guildId);
+    radioQueue?.setRepeatMode(2);
+
+    if (loadedSongs > 0) {
+      this.options.enableRadioMode?.(guildId);
+      console.log(
+        `[Activity] Radio iniciada por inatividade com ${loadedSongs} musica(s) em ${activity.textChannel?.guild?.name}`,
+      );
+    } else {
+      console.warn(
+        `[Activity] Nenhuma musica favorita foi carregada para radio por inatividade em ${guildId}`,
+      );
     }
   }
 
-  /**
-   * Limpa registros de atividade para um servidor
-   */
   public clearActivity(guildId: string): void {
     const activity = this.guildActivities.get(guildId);
 
@@ -168,9 +209,6 @@ export class ActivityManager {
     }
   }
 
-  /**
-   * Obtém status de atividade de um servidor
-   */
   public getActivityStatus(guildId: string): {
     isActive: boolean;
     timeSinceLastActivity: number;
@@ -189,38 +227,50 @@ export class ActivityManager {
     };
   }
 
-  /**
-   * Força desconexão imediata de um servidor (para setup/cleanup)
-   */
+  public getInactivityTimeoutMs(): number {
+    return this.INACTIVITY_TIMEOUT;
+  }
+
   public forceDisconnect(guildId: string): void {
     const queue = this.distube.getQueue(guildId);
     if (queue) {
       try {
         queue.voice?.leave();
         console.log(
-          `[Activity] Desconexão forçada em ${queue.textChannel?.guild?.name}`,
+          `[Activity] Desconexao forcada em ${queue.textChannel?.guild?.name}`,
         );
       } catch (error) {
         console.warn(
-          `[Activity] Erro ao desconectar forçadamente: ${(error as Error).message}`,
+          `[Activity] Erro ao desconectar forcadamente: ${(error as Error).message}`,
         );
       }
     }
     this.clearActivity(guildId);
   }
 
-  /**
-   * Limpa todos os registros de atividade (útil no shutdown)
-   */
   public cleanup(): void {
-    for (const [guildId, activity] of this.guildActivities.entries()) {
+    for (const [, activity] of this.guildActivities.entries()) {
       if (activity.inactivityTimeout) {
         clearInterval(activity.inactivityTimeout);
       }
     }
     this.guildActivities.clear();
     console.log(
-      `[Activity] ActivityManager finalizado - todos os registros limpos`,
+      "[Activity] ActivityManager finalizado - todos os registros limpos",
     );
   }
 }
+
+const shuffleSongs = <T>(songs: T[]) => {
+  const shuffled = [...songs];
+
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [
+      shuffled[randomIndex],
+      shuffled[index],
+    ];
+  }
+
+  return shuffled;
+};
