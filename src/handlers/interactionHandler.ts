@@ -11,7 +11,7 @@ import {
   ChatInputCommandInteraction,
 } from "discord.js";
 import { MusicManager } from "../music/MusicManager";
-import { createPlayerEmbed, getQueuePageInfo } from "../utils/playerEmbed";
+import { createPlayerEmbed, getQueuePageInfo, getPlayerButtons } from "../utils/playerEmbed";
 import {
   savePlaylist,
   getPlaylists,
@@ -45,6 +45,7 @@ export const handleInteraction = async (
       interaction.customId.startsWith("view_queue:")
     ) {
       const history = musicManager.getHistory(interaction.guildId);
+
       const requestedPage = getRequestedQueuePage(interaction.customId);
       const pageInfo = getQueuePageInfo(queue, history, requestedPage);
       const embed = createPlayerEmbed(queue, history, true, pageInfo.page);
@@ -54,18 +55,26 @@ export const handleInteraction = async (
           .setCustomId("back_to_player")
           .setLabel("Voltar")
           .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId(`view_queue:${Math.max(pageInfo.page - 1, 0)}`)
-          .setLabel("Anterior")
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(pageInfo.page === 0),
-        new ButtonBuilder()
-          .setCustomId(
-            `view_queue:${Math.min(pageInfo.page + 1, pageInfo.totalPages - 1)}`,
-          )
-          .setLabel("Proxima")
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(pageInfo.page >= pageInfo.totalPages - 1),
+      );
+
+      if (pageInfo.totalPages > 1) {
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`view_queue:${Math.max(pageInfo.page - 1, 0)}`)
+            .setLabel("Anterior")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(pageInfo.page === 0),
+          new ButtonBuilder()
+            .setCustomId(
+              `view_queue:${Math.min(pageInfo.page + 1, pageInfo.totalPages - 1)}`,
+            )
+            .setLabel("Proxima")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(pageInfo.page >= pageInfo.totalPages - 1),
+        );
+      }
+
+      row.addComponents(
         new ButtonBuilder()
           .setCustomId("save_playlist_btn")
           .setLabel("Salvar Playlist")
@@ -76,24 +85,9 @@ export const handleInteraction = async (
     } else if (interaction.customId === "back_to_player") {
       const history = musicManager.getHistory(interaction.guildId);
       const embed = createPlayerEmbed(queue, history, false);
+      const components = getPlayerButtons();
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId("view_queue:0")
-          .setLabel("Ver Fila")
-          .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId("play_playlist")
-          .setLabel("Tocar Playlist")
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId("start_radio")
-          .setLabel("Rádio")
-          .setEmoji("📻")
-          .setStyle(ButtonStyle.Success),
-      );
-
-      await interaction.update({ embeds: [embed], components: [row] });
+      await interaction.update({ embeds: [embed], components });
     } else if (interaction.customId === "save_playlist_btn") {
       if (!queue || !queue.songs.length) {
         return interaction.reply({
@@ -199,6 +193,7 @@ export const handleInteraction = async (
       const queue = musicManager.distube.getQueue(interaction.guildId);
       if (queue) {
         queue.stop();
+        musicManager.activityManager.onFinish(queue);
         musicManager.clearHistory(interaction.guildId);
       }
 

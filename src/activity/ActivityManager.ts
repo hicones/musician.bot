@@ -14,62 +14,46 @@ interface GuildActivity {
 export class ActivityManager {
   private distube: DisTube;
   private guildActivities: Map<string, GuildActivity> = new Map();
-  private readonly INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 2 minutos em ms
+  private readonly INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutos em ms
   private readonly CHECK_INTERVAL = 5 * 1000; // Verificar a cada 5 segundos
 
   constructor(distube: DisTube) {
     this.distube = distube;
-    this.setupEventListeners();
   }
 
-  private setupEventListeners() {
-    // Atualizar atividade quando música começa a tocar
-    (this.distube as any).on("playSong", (queue: any) => {
-      this.recordActivity(queue.id!);
-      console.log(
-        `[Activity] Atividade registrada: música tocando em ${queue.textChannel?.guild?.name}`,
-      );
-    });
+  public onPlaySong(queue: any): void {
+    this.recordActivity(queue.id!);
+    console.log(
+      `[Activity] Atividade registrada: música tocando em ${queue.textChannel?.guild?.name}`,
+    );
+  }
 
-    // Atualizar atividade quando música é adicionada
-    (this.distube as any).on("addSong", (queue: any) => {
-      this.recordActivity(queue.id!);
-      console.log(
-        `[Activity] Atividade registrada: música adicionada em ${queue.textChannel?.guild?.name}`,
-      );
-    });
+  public onAddSong(queue: any): void {
+    this.recordActivity(queue.id!);
+    console.log(
+      `[Activity] Atividade registrada: música adicionada em ${queue.textChannel?.guild?.name}`,
+    );
+  }
 
-    // Atualizar atividade quando playlist é adicionada
-    (this.distube as any).on("addList", (queue: any) => {
-      this.recordActivity(queue.id!);
-      console.log(
-        `[Activity] Atividade registrada: playlist adicionada em ${queue.textChannel?.guild?.name}`,
-      );
-    });
+  public onAddList(queue: any): void {
+    this.recordActivity(queue.id!);
+    console.log(
+      `[Activity] Atividade registrada: playlist adicionada em ${queue.textChannel?.guild?.name}`,
+    );
+  }
 
-    // Limpar atividade quando fila termina
-    (this.distube as any).on("finish", (queue: any) => {
-      this.startMonitoringInactivity(queue.id!);
-      console.log(
-        `[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name}`,
-      );
-    });
+  public onFinish(queue: any): void {
+    this.startMonitoringInactivity(queue.id!);
+    console.log(
+      `[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name}`,
+    );
+  }
 
-    // Limpar atividade quando a fila é parada manualmente
-    (this.distube as any).on("stop", (queue: any) => {
-      this.startMonitoringInactivity(queue.id!);
-      console.log(
-        `[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name} após parada manual`,
-      );
-    });
-
-    // Limpar quando bot sai do servidor
-    (this.distube as any).on("disconnect", (queue: any) => {
-      this.clearActivity(queue.id!);
-      console.log(
-        `[Activity] Atividade limpa para ${queue.textChannel?.guild?.name}`,
-      );
-    });
+  public onDisconnect(queue: any): void {
+    this.clearActivity(queue.id!);
+    console.log(
+      `[Activity] Atividade limpa para ${queue.textChannel?.guild?.name}`,
+    );
   }
 
   /**

@@ -1,7 +1,7 @@
-import { Client, TextChannel } from 'discord.js';
+import { Client, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { DisTube, Song } from 'distube';
 import { SoundCloudPlugin } from '@distube/soundcloud';
-import { createPlayerEmbed, getPlayerAttachments } from '../utils/playerEmbed';
+import { createPlayerEmbed, getPlayerAttachments, getPlayerButtons } from '../utils/playerEmbed';
 import { formatError } from '../utils/formatError';
 import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
 import { SafeSpotifyPlugin, SafeSpotifyPluginOptions } from './SafeSpotifyPlugin';
@@ -37,14 +37,17 @@ export class MusicManager {
         console.log(`[Music] Tocando agora: "${song.name}" em "${queue.textChannel?.guild.name}"`);
         this.addToPlayed(queue.id!, song);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onPlaySong(queue);
       })
       .on('addSong', (queue: any, song: any) => {
         console.log(`[Music] Música adicionada: "${song.name}" por ${song.user?.tag}`);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onAddSong(queue);
       })
       .on('addList', (queue: any, playlist: any) => {
         console.log(`[Music] Playlist adicionada: "${playlist.name}" (${playlist.songs.length} músicas)`);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onAddList(queue);
       })
       .on('error', (error: Error, queue: any, song?: Song) => {
         const guildName = queue?.textChannel?.guild?.name || queue?.id || 'desconhecido';
@@ -55,6 +58,15 @@ export class MusicManager {
       .on('finish', (queue: any) => {
         console.log(`[Music] Fila finalizada em "${queue.textChannel?.guild.name}"`);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
+        this.activityManager.onFinish(queue);
+      })
+      .on('empty', (queue: any) => {
+        console.log(`[Music] Fila vazia/empty em "${queue.textChannel?.guild.name}"`);
+        this.activityManager.onFinish(queue);
+      })
+      .on('disconnect', (queue: any) => {
+        console.log(`[Music] Bot desconectado em "${queue.textChannel?.guild.name}"`);
+        this.activityManager.onDisconnect(queue);
       });
   }
 
@@ -76,7 +88,6 @@ export class MusicManager {
   public async updatePlayerMessage(channel: TextChannel) {
     if (!channel) return;
     
-    // Find the controller message in the music-room
     const messages = await channel.messages.fetch({ limit: 10 });
     const controllerMsg = messages.find(m => m.embeds.length > 0 && m.author.id === channel.client.user?.id);
     
@@ -84,18 +95,17 @@ export class MusicManager {
       const queue = this.distube.getQueue(channel.guildId);
       const history = this.getHistory(channel.guildId);
       const embed = createPlayerEmbed(queue, history);
+      const components = getPlayerButtons();
       
       const attachments = getPlayerAttachments();
-      const payload: any = { embeds: [embed] };
+      const payload: any = { embeds: [embed], components };
 
-      // Determine which file to attach based on the embed's image
       const imageUrl = (embed.data as any).image?.url;
       if (imageUrl === 'attachment://banner.png') {
         payload.files = [attachments[0]];
       } else if (imageUrl === 'attachment://placeholder.png') {
         payload.files = [attachments[1]];
       } else {
-        // If it's a URL (thumbnail), remove attachments to keep it clean
         payload.files = [];
       }
 
