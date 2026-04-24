@@ -86,6 +86,13 @@ export interface FavoriteSongData extends SongData {
   userId: string;
 }
 
+export interface FavoriteSong extends SongData {
+  id: number;
+  guild_id: string;
+  user_id: string;
+  favorited_at: string;
+}
+
 export const savePlaylist = (
   name: string,
   userId: string,
@@ -145,6 +152,12 @@ export const saveFavoriteSong = (song: FavoriteSongData) => {
   );
 
   return info.changes > 0;
+};
+
+export const getFavoriteSongs = (guildId: string): FavoriteSong[] => {
+  return db.prepare(
+    "SELECT id, guild_id, user_id, title, url, duration, thumbnail, favorited_at FROM favorite_songs WHERE guild_id = ? ORDER BY favorited_at ASC",
+  ).all(guildId) as FavoriteSong[];
 };
 
 // Guild config management

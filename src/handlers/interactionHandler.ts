@@ -16,6 +16,7 @@ import {
   savePlaylist,
   getPlaylists,
   getPlaylistSongs,
+  getFavoriteSongs,
   SongData,
 } from "../database/db";
 import { handleSetupCommand } from "../commands/setup";
@@ -141,10 +142,56 @@ export const handleInteraction = async (
         ephemeral: true,
       });
     } else if (interaction.customId === "start_radio") {
-      await interaction.reply({
-        content: "Funcionalidade de rádio ainda não implementada!",
-        ephemeral: true,
+      const voiceChannel = (interaction.member as any).voice?.channel;
+      if (!voiceChannel) {
+        return interaction.reply({
+          content: "Voce precisa estar em um canal de voz para iniciar a radio!",
+          ephemeral: true,
+        });
+      }
+
+      const favoriteSongs = shuffleSongs(getFavoriteSongs(interaction.guildId));
+      if (favoriteSongs.length === 0) {
+        return interaction.reply({
+          content: "Ainda nao ha musicas favoritadas para iniciar a radio.",
+          ephemeral: true,
+        });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const queue = musicManager.distube.getQueue(interaction.guildId);
+      if (queue) {
+        queue.stop();
+        musicManager.activityManager.onFinish(queue);
+        musicManager.clearHistory(interaction.guildId);
+      }
+
+      let loadedSongs = 0;
+      for (const songData of favoriteSongs) {
+        try {
+          await musicManager.distube.play(voiceChannel, songData.url, {
+            member: interaction.member as any,
+            textChannel: interaction.channel as TextChannel,
+          });
+          loadedSongs++;
+        } catch (error) {
+          console.error(`[Radio] Erro ao carregar favorito "${songData.title}":`, error);
+        }
+      }
+
+      const radioQueue = musicManager.distube.getQueue(interaction.guildId);
+      radioQueue?.setRepeatMode(2);
+
+      await interaction.editReply({
+        content: loadedSongs > 0
+          ? `Radio iniciada com ${loadedSongs} musica(s) favoritadas em modo aleatorio e loop.`
+          : "Nao consegui carregar nenhuma musica favoritada para iniciar a radio.",
       });
+
+      if (interaction.channel?.isTextBased()) {
+        musicManager.updatePlayerMessage(interaction.channel as TextChannel);
+      }
     }
   } else if (interaction.isModalSubmit()) {
     if (interaction.customId === "save_playlist_modal") {
@@ -216,4 +263,18 @@ export const handleInteraction = async (
 const getRequestedQueuePage = (customId: string) => {
   const [, page] = customId.split(":");
   return page ? Number(page) : 0;
+};
+
+const shuffleSongs = <T>(songs: T[]) => {
+  const shuffled = [...songs];
+
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [
+      shuffled[randomIndex],
+      shuffled[index],
+    ];
+  }
+
+  return shuffled;
 };
