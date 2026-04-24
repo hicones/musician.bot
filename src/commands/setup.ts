@@ -370,6 +370,7 @@ export const handleSetupCommand = async (
         if (queue) {
           try {
             queue.stop();
+            musicManager.activityManager.onFinish(queue);
             console.log(
               `[Setup] Fila interrompida no servidor ${interaction.guild?.name}`,
             );
