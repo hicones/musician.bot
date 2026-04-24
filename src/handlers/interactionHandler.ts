@@ -1,17 +1,16 @@
-import { 
-  Interaction, 
-  ModalBuilder, 
-  TextInputBuilder, 
-  TextInputStyle, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
+import {
+  Interaction,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   StringSelectMenuBuilder,
   TextChannel,
-  EmbedBuilder
 } from 'discord.js';
 import { MusicManager } from '../music/MusicManager';
-import { createPlayerEmbed } from '../utils/playerEmbed';
+import { createPlayerEmbed, getQueuePageInfo } from '../utils/playerEmbed';
 import { savePlaylist, getPlaylists, getPlaylistSongs, SongData } from '../database/db';
 
 export const handleInteraction = async (interaction: Interaction, musicManager: MusicManager) => {
@@ -20,21 +19,31 @@ export const handleInteraction = async (interaction: Interaction, musicManager: 
   if (interaction.isButton()) {
     const queue = musicManager.distube.getQueue(interaction.guildId);
 
-    if (interaction.customId === 'view_queue') {
+    if (interaction.customId === 'view_queue' || interaction.customId.startsWith('view_queue:')) {
       const history = musicManager.getHistory(interaction.guildId);
-      const embed = createPlayerEmbed(queue, history, true);
-      
+      const requestedPage = getRequestedQueuePage(interaction.customId);
+      const pageInfo = getQueuePageInfo(queue, history, requestedPage);
+      const embed = createPlayerEmbed(queue, history, true, pageInfo.page);
+
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
+          .setCustomId(`view_queue:${Math.max(pageInfo.page - 1, 0)}`)
+          .setLabel('Anterior')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(pageInfo.page === 0),
+        new ButtonBuilder()
           .setCustomId('back_to_player')
-          .setLabel('Voltar ao Player')
-          .setEmoji('🔙')
-          .setStyle(ButtonStyle.Secondary),
+          .setLabel('Voltar')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`view_queue:${Math.min(pageInfo.page + 1, pageInfo.totalPages - 1)}`)
+          .setLabel('Proxima')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(pageInfo.page >= pageInfo.totalPages - 1),
         new ButtonBuilder()
           .setCustomId('save_playlist_btn')
           .setLabel('Salvar Playlist')
-          .setEmoji('💾')
-          .setStyle(ButtonStyle.Success)
+          .setStyle(ButtonStyle.Success),
       );
 
       await interaction.update({ embeds: [embed], components: [row] });
@@ -43,10 +52,10 @@ export const handleInteraction = async (interaction: Interaction, musicManager: 
     else if (interaction.customId === 'back_to_player') {
       const history = musicManager.getHistory(interaction.guildId);
       const embed = createPlayerEmbed(queue, history, false);
-      
+
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId('view_queue').setLabel('Ver Fila').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('play_playlist').setLabel('Tocar Playlist').setStyle(ButtonStyle.Primary)
+        new ButtonBuilder().setCustomId('view_queue:0').setLabel('Ver Fila').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('play_playlist').setLabel('Tocar Playlist').setStyle(ButtonStyle.Primary),
       );
 
       await interaction.update({ embeds: [embed], components: [row] });
@@ -54,7 +63,7 @@ export const handleInteraction = async (interaction: Interaction, musicManager: 
 
     else if (interaction.customId === 'save_playlist_btn') {
       if (!queue || !queue.songs.length) {
-        return interaction.reply({ content: 'Não há músicas na fila para salvar!', ephemeral: true });
+        return interaction.reply({ content: 'Nao ha musicas na fila para salvar!', ephemeral: true });
       }
 
       const modal = new ModalBuilder()
@@ -74,22 +83,21 @@ export const handleInteraction = async (interaction: Interaction, musicManager: 
 
     else if (interaction.customId === 'play_playlist') {
       const playlists = getPlaylists(interaction.guildId);
-      
+
       if (playlists.length === 0) {
-        return interaction.reply({ content: 'Você não tem playlists salvas!', ephemeral: true });
+        return interaction.reply({ content: 'Voce nao tem playlists salvas!', ephemeral: true });
       }
 
       const select = new StringSelectMenuBuilder()
         .setCustomId('select_playlist')
         .setPlaceholder('Escolha uma playlist...')
-        .addOptions(playlists.map(p => ({
+        .addOptions(playlists.map((p) => ({
           label: p.name,
           value: p.id.toString(),
-          emoji: '🎵'
         })));
 
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-      
+
       await interaction.reply({ content: 'Selecione uma playlist para tocar:', components: [row], ephemeral: true });
     }
   }
@@ -98,14 +106,14 @@ export const handleInteraction = async (interaction: Interaction, musicManager: 
     if (interaction.customId === 'save_playlist_modal') {
       const name = interaction.fields.getTextInputValue('playlist_name');
       const queue = musicManager.distube.getQueue(interaction.guildId);
-      
+
       if (!queue) return interaction.reply({ content: 'Erro ao salvar: fila vazia.', ephemeral: true });
 
-      const songs = queue.songs.map(s => ({
-        title: s.name || 'Sem Título',
+      const songs = queue.songs.map((s) => ({
+        title: s.name || 'Sem Titulo',
         url: s.url,
         duration: s.formattedDuration,
-        thumbnail: s.thumbnail
+        thumbnail: s.thumbnail,
       }));
 
       savePlaylist(name, interaction.user.id, interaction.guildId!, songs as SongData[]);
@@ -120,28 +128,31 @@ export const handleInteraction = async (interaction: Interaction, musicManager: 
       const voiceChannel = (interaction.member as any).voice?.channel;
 
       if (!voiceChannel) {
-        return interaction.reply({ content: 'Você precisa estar em um canal de voz!', ephemeral: true });
+        return interaction.reply({ content: 'Voce precisa estar em um canal de voz!', ephemeral: true });
       }
 
       await interaction.deferUpdate();
 
-      // Clear existing queue
       const queue = musicManager.distube.getQueue(interaction.guildId);
       if (queue) {
         queue.stop();
         musicManager.clearHistory(interaction.guildId);
       }
 
-      // Play each song
       for (const songData of songs) {
         await musicManager.distube.play(voiceChannel, songData.url, {
           member: interaction.member as any,
-          textChannel: interaction.channel as TextChannel
+          textChannel: interaction.channel as TextChannel,
         });
       }
 
-      await interaction.followUp({ content: `Tocando playlist selecionada!`, ephemeral: true });
+      await interaction.followUp({ content: 'Tocando playlist selecionada!', ephemeral: true });
       musicManager.updatePlayerMessage(interaction.channel as TextChannel);
     }
   }
+};
+
+const getRequestedQueuePage = (customId: string) => {
+  const [, page] = customId.split(':');
+  return page ? Number(page) : 0;
 };

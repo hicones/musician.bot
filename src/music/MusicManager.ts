@@ -1,11 +1,10 @@
 import { Client, TextChannel } from 'discord.js';
 import { DisTube, Song } from 'distube';
 import { SoundCloudPlugin } from '@distube/soundcloud';
-import { SpotifyPluginOptions } from '@distube/spotify';
 import { createPlayerEmbed } from '../utils/playerEmbed';
 import { formatError } from '../utils/formatError';
 import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
-import { SafeSpotifyPlugin } from './SafeSpotifyPlugin';
+import { SafeSpotifyPlugin, SafeSpotifyPluginOptions } from './SafeSpotifyPlugin';
 
 export interface PlayedSong {
   title: string;
@@ -89,21 +88,33 @@ export class MusicManager {
     this.playedSongs.set(guildId, []);
   }
 
-  private getSpotifyOptions(): SpotifyPluginOptions {
+  private getSpotifyOptions(): SafeSpotifyPluginOptions {
     const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
+    const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN?.trim();
     const topTracksCountry = process.env.SPOTIFY_TOP_TRACKS_COUNTRY?.trim().toUpperCase();
 
     if (!clientId || !clientSecret) {
+      console.warn('[Spotify] Credenciais nao configuradas. Playlists/albums grandes podem ficar limitados a 100 faixas.');
       return {};
     }
 
+    console.log(
+      `[Spotify] Credenciais carregadas (${this.maskSecret(clientId)} / ${this.maskSecret(clientSecret)})` +
+        `${refreshToken ? ' com refresh token de usuario' : ' sem refresh token de usuario'}.`,
+    );
+
     return {
+      refreshToken,
       api: {
         clientId,
         clientSecret,
         ...(topTracksCountry && /^[A-Z]{2}$/.test(topTracksCountry) ? { topTracksCountry } : {}),
       },
     };
+  }
+
+  private maskSecret(value: string) {
+    return `${value.slice(0, 4)}...${value.slice(-4)}`;
   }
 }
