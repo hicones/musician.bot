@@ -46,6 +46,7 @@ export const handleReaction = async (
       if (queue) {
         queue.stop();
         musicManager.activityManager.onFinish(queue);
+        musicManager.clearHistory(guildId);
       }
       break;
     case "🔀":
