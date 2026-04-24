@@ -21,6 +21,19 @@ const client = new Client({
 
 const musicManager = new MusicManager(client);
 
+const getMusicRequestType = (input: string) => {
+  if (/^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be|music\.youtube\.com)\//i.test(input)) {
+    return input.includes('list=') || /\/playlist(?:\?|\/)/i.test(input) ? 'Playlist YouTube' : 'URL YouTube';
+  }
+
+  if (/^https?:\/\/open\.spotify\.com\/playlist\//i.test(input)) return 'Playlist Spotify';
+  if (/^https?:\/\/open\.spotify\.com\//i.test(input)) return 'URL Spotify';
+  if (/^https?:\/\/(?:www\.)?soundcloud\.com\//i.test(input)) return 'URL SoundCloud';
+  if (/^https?:\/\//i.test(input)) return 'URL';
+
+  return 'Busca YouTube';
+};
+
 client.once('clientReady', () => {
   console.log(`Bot logado como ${client.user?.tag}`);
   console.log(`Prefixo configurado: ${process.env.PREFIX || '!'}`);
@@ -54,8 +67,8 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    const isUrl = /^https?:\/\//i.test(requestedSong);
-    console.log(`[Music] ${isUrl ? 'URL' : 'Busca'} detectada: ${requestedSong} (Usuario: ${message.author.tag})`);
+    const requestType = getMusicRequestType(requestedSong);
+    console.log(`[Music] ${requestType} detectada: ${requestedSong} (Usuario: ${message.author.tag})`);
 
     try {
       await musicManager.distube.play(voiceChannel, requestedSong, {
@@ -66,7 +79,7 @@ client.on('messageCreate', async (message) => {
       // Delete original message to keep channel clean
       await message.delete().catch(() => {});
     } catch (e) {
-      console.error(`[Music Error] Erro ao tentar tocar ${isUrl ? 'URL' : 'busca'}:`);
+      console.error(`[Music Error] Erro ao tentar tocar ${requestType}:`);
       console.error(formatError(e));
     }
   }

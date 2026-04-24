@@ -41,7 +41,8 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
   }
 
   async resolve<T>(url: string, options: ResolveOptions<T>) {
-    const info = await this.getInfo(url);
+    const isPlaylistUrl = /[?&]list=|\/playlist(?:\?|\/|$)/i.test(url);
+    const info = await this.getInfo(url, isPlaylistUrl ? { flatPlaylist: true, yesPlaylist: true } : {});
 
     if (isPlaylist(info)) {
       if (info.entries.length === 0) {
@@ -119,7 +120,7 @@ class SafeYtDlpSong<T = unknown> extends Song<T> {
         playFromSource: true,
         id: info.id,
         name: info.title || info.fulltitle,
-        url: info.webpage_url || info.original_url,
+        url: info.webpage_url || info.original_url || info.url,
         isLive: info.is_live,
         thumbnail: info.thumbnail || info.thumbnails?.[0]?.url,
         duration: info.is_live ? 0 : info.duration,

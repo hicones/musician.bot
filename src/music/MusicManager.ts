@@ -1,9 +1,11 @@
 import { Client, TextChannel } from 'discord.js';
 import { DisTube, Song } from 'distube';
 import { SoundCloudPlugin } from '@distube/soundcloud';
+import { SpotifyPluginOptions } from '@distube/spotify';
 import { createPlayerEmbed } from '../utils/playerEmbed';
 import { formatError } from '../utils/formatError';
 import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
+import { SafeSpotifyPlugin } from './SafeSpotifyPlugin';
 
 export interface PlayedSong {
   title: string;
@@ -17,7 +19,11 @@ export class MusicManager {
 
   constructor(client: Client) {
     this.distube = new DisTube(client, {
-      plugins: [new SafeYtDlpPlugin(), new SoundCloudPlugin()],
+      plugins: [
+        new SafeSpotifyPlugin(this.getSpotifyOptions()),
+        new SafeYtDlpPlugin(),
+        new SoundCloudPlugin(),
+      ],
     });
 
     this.setupEvents();
@@ -81,5 +87,23 @@ export class MusicManager {
 
   public clearHistory(guildId: string) {
     this.playedSongs.set(guildId, []);
+  }
+
+  private getSpotifyOptions(): SpotifyPluginOptions {
+    const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
+    const topTracksCountry = process.env.SPOTIFY_TOP_TRACKS_COUNTRY?.trim().toUpperCase();
+
+    if (!clientId || !clientSecret) {
+      return {};
+    }
+
+    return {
+      api: {
+        clientId,
+        clientSecret,
+        ...(topTracksCountry && /^[A-Z]{2}$/.test(topTracksCountry) ? { topTracksCountry } : {}),
+      },
+    };
   }
 }
