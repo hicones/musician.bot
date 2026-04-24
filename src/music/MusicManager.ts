@@ -1,10 +1,11 @@
 import { Client, TextChannel } from 'discord.js';
 import { DisTube, Song } from 'distube';
 import { SoundCloudPlugin } from '@distube/soundcloud';
-import { SpotifyPlugin, SpotifyPluginOptions } from '@distube/spotify';
+import { SpotifyPluginOptions } from '@distube/spotify';
 import { createPlayerEmbed } from '../utils/playerEmbed';
 import { formatError } from '../utils/formatError';
 import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
+import { SafeSpotifyPlugin } from './SafeSpotifyPlugin';
 
 export interface PlayedSong {
   title: string;
@@ -19,7 +20,7 @@ export class MusicManager {
   constructor(client: Client) {
     this.distube = new DisTube(client, {
       plugins: [
-        new SpotifyPlugin(this.getSpotifyOptions()),
+        new SafeSpotifyPlugin(this.getSpotifyOptions()),
         new SafeYtDlpPlugin(),
         new SoundCloudPlugin(),
       ],
