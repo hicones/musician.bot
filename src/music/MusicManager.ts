@@ -60,9 +60,9 @@ export class MusicManager {
         this.updatePlayerMessage(queue.textChannel as TextChannel);
         this.activityManager.onFinish(queue);
       })
-      .on('stop', (queue: any) => {
-        console.log(`[Music] Fila parada em "${queue.textChannel?.guild.name}"`);
-        this.activityManager.onStop(queue);
+      .on('empty', (queue: any) => {
+        console.log(`[Music] Fila vazia/empty em "${queue.textChannel?.guild.name}"`);
+        this.activityManager.onFinish(queue);
       })
       .on('disconnect', (queue: any) => {
         console.log(`[Music] Bot desconectado em "${queue.textChannel?.guild.name}"`);

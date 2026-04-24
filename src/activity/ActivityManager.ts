@@ -14,7 +14,7 @@ interface GuildActivity {
 export class ActivityManager {
   private distube: DisTube;
   private guildActivities: Map<string, GuildActivity> = new Map();
-  private readonly INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 2 minutos em ms
+  private readonly INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutos em ms
   private readonly CHECK_INTERVAL = 5 * 1000; // Verificar a cada 5 segundos
 
   constructor(distube: DisTube) {
@@ -23,32 +23,37 @@ export class ActivityManager {
 
   public onPlaySong(queue: any): void {
     this.recordActivity(queue.id!);
-    console.log(`[Activity] Atividade registrada: música tocando em ${queue.textChannel?.guild?.name}`);
+    console.log(
+      `[Activity] Atividade registrada: música tocando em ${queue.textChannel?.guild?.name}`,
+    );
   }
 
   public onAddSong(queue: any): void {
     this.recordActivity(queue.id!);
-    console.log(`[Activity] Atividade registrada: música adicionada em ${queue.textChannel?.guild?.name}`);
+    console.log(
+      `[Activity] Atividade registrada: música adicionada em ${queue.textChannel?.guild?.name}`,
+    );
   }
 
   public onAddList(queue: any): void {
     this.recordActivity(queue.id!);
-    console.log(`[Activity] Atividade registrada: playlist adicionada em ${queue.textChannel?.guild?.name}`);
+    console.log(
+      `[Activity] Atividade registrada: playlist adicionada em ${queue.textChannel?.guild?.name}`,
+    );
   }
 
   public onFinish(queue: any): void {
     this.startMonitoringInactivity(queue.id!);
-    console.log(`[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name}`);
-  }
-
-  public onStop(queue: any): void {
-    this.startMonitoringInactivity(queue.id!);
-    console.log(`[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name} após parada manual`);
+    console.log(
+      `[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name}`,
+    );
   }
 
   public onDisconnect(queue: any): void {
     this.clearActivity(queue.id!);
-    console.log(`[Activity] Atividade limpa para ${queue.textChannel?.guild?.name}`);
+    console.log(
+      `[Activity] Atividade limpa para ${queue.textChannel?.guild?.name}`,
+    );
   }
 
   /**
