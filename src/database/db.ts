@@ -1,97 +1,22 @@
 import Database from "better-sqlite3";
 import path from "path";
+import type {
+  GuildConfig,
+  Playlist,
+  SongData,
+  FavoriteSongData,
+  FavoriteSong,
+} from "../types/database.js";
+
+export type {
+  GuildConfig,
+  Playlist,
+  SongData,
+  FavoriteSongData,
+  FavoriteSong,
+};
 
 const db = new Database(path.join(__dirname, "../../data/database.sqlite"));
-
-// Initialize tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS guild_config (
-    guild_id TEXT PRIMARY KEY,
-    music_room_id TEXT NOT NULL,
-    player_message_id TEXT,
-    setup_by TEXT NOT NULL,
-    setup_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'active'
-  );
-
-  CREATE TABLE IF NOT EXISTS playlists (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    guild_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS playlist_songs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    playlist_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    url TEXT NOT NULL,
-    duration TEXT,
-    thumbnail TEXT,
-    FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS favorite_songs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    guild_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    url TEXT NOT NULL UNIQUE,
-    duration TEXT,
-    thumbnail TEXT,
-    favorited_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
-
-db.exec(`
-  DELETE FROM favorite_songs
-  WHERE id NOT IN (
-    SELECT MIN(id)
-    FROM favorite_songs
-    GROUP BY url
-  );
-
-  CREATE UNIQUE INDEX IF NOT EXISTS favorite_songs_url_unique
-  ON favorite_songs (url);
-`);
-
-export interface GuildConfig {
-  guild_id: string;
-  music_room_id: string;
-  player_message_id?: string;
-  setup_by: string;
-  setup_at: string;
-  last_updated: string;
-  status: "active" | "needs_repair" | "deprecated";
-}
-
-export interface Playlist {
-  id: number;
-  name: string;
-  user_id: string;
-  guild_id: string;
-}
-
-export interface SongData {
-  title: string;
-  url: string;
-  duration?: string;
-  thumbnail?: string;
-}
-
-export interface FavoriteSongData extends SongData {
-  guildId: string;
-  userId: string;
-}
-
-export interface FavoriteSong extends SongData {
-  id: number;
-  guild_id: string;
-  user_id: string;
-  favorited_at: string;
-}
 
 export const savePlaylist = (
   name: string,

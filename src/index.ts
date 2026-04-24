@@ -8,11 +8,11 @@ import {
   VoiceState,
 } from "discord.js";
 import dotenv from "dotenv";
-import { MusicManager } from "./music/MusicManager";
+import { MusicManager } from "./music/music-manager";
 import { setupCommandData } from "./commands/setup";
-import { handleReaction } from "./handlers/reactionHandler";
-import { handleInteraction } from "./handlers/interactionHandler";
-import { formatError } from "./utils/formatError";
+import { handleReaction } from "./handlers/reaction-handler";
+import { handleInteraction } from "./handlers/interaction-handler";
+import { formatError } from "./utils/format-error";
 
 dotenv.config();
 

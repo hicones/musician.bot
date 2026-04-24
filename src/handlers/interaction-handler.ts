@@ -10,12 +10,12 @@ import {
   TextChannel,
   ChatInputCommandInteraction,
 } from "discord.js";
-import { MusicManager } from "../music/MusicManager";
+import { MusicManager } from "../music/music-manager";
 import {
   createPlayerEmbed,
   getQueuePageInfo,
   getPlayerButtons,
-} from "../utils/playerEmbed";
+} from "../utils/player-embed";
 import {
   savePlaylist,
   getPlaylists,

@@ -1,4 +1,5 @@
-import { DisTube } from "distube";
+import { DisTube, Queue } from "distube";
+import { TextChannel, VoiceBasedChannel } from "discord.js";
 import { getFavoriteSongs } from "../database/db";
 import { shuffleSongs } from "../utils/queue";
 
@@ -7,8 +8,8 @@ interface GuildActivity {
   lastActivityTime: number;
   inactivityTimeout: NodeJS.Timeout | null;
   isMonitoring: boolean;
-  voiceChannel?: any;
-  textChannel?: any;
+  voiceChannel?: VoiceBasedChannel;
+  textChannel?: TextChannel;
 }
 
 interface ActivityManagerOptions {
@@ -32,40 +33,40 @@ export class ActivityManager {
     this.options = options;
   }
 
-  public onPlaySong(queue: any): void {
-    this.recordActivity(queue.id!);
+  public onPlaySong(queue: Queue): void {
+    this.recordActivity(queue.id);
     console.log(
       `[Activity] Atividade registrada: musica tocando em ${queue.textChannel?.guild?.name}`,
     );
   }
 
-  public onAddSong(queue: any): void {
-    this.recordActivity(queue.id!);
+  public onAddSong(queue: Queue): void {
+    this.recordActivity(queue.id);
     console.log(
       `[Activity] Atividade registrada: musica adicionada em ${queue.textChannel?.guild?.name}`,
     );
   }
 
-  public onAddList(queue: any): void {
-    this.recordActivity(queue.id!);
+  public onAddList(queue: Queue): void {
+    this.recordActivity(queue.id);
     console.log(
       `[Activity] Atividade registrada: playlist adicionada em ${queue.textChannel?.guild?.name}`,
     );
   }
 
-  public onFinish(queue: any): void {
+  public onFinish(queue: Queue): void {
     this.startMonitoringInactivity(
-      queue.id!,
-      queue.voiceChannel,
-      queue.textChannel,
+      queue.id,
+      queue.voiceChannel ?? undefined,
+      queue.textChannel as TextChannel | undefined,
     );
     console.log(
       `[Activity] Monitorando inatividade em ${queue.textChannel?.guild?.name}`,
     );
   }
 
-  public onDisconnect(queue: any): void {
-    this.clearActivity(queue.id!);
+  public onDisconnect(queue: Queue): void {
+    this.clearActivity(queue.id);
     console.log(
       `[Activity] Atividade limpa para ${queue.textChannel?.guild?.name}`,
     );
@@ -92,8 +93,8 @@ export class ActivityManager {
 
   public startMonitoringInactivity(
     guildId: string,
-    voiceChannel?: any,
-    textChannel?: any,
+    voiceChannel?: VoiceBasedChannel,
+    textChannel?: TextChannel,
   ): void {
     let activity = this.guildActivities.get(guildId);
 
