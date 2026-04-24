@@ -11,7 +11,11 @@ import {
   ChatInputCommandInteraction,
 } from "discord.js";
 import { MusicManager } from "../music/MusicManager";
-import { createPlayerEmbed, getQueuePageInfo, getPlayerButtons } from "../utils/playerEmbed";
+import {
+  createPlayerEmbed,
+  getQueuePageInfo,
+  getPlayerButtons,
+} from "../utils/playerEmbed";
 import {
   savePlaylist,
   getPlaylists,
@@ -20,6 +24,7 @@ import {
   SongData,
 } from "../database/db";
 import { handleSetupCommand } from "../commands/setup";
+import { shuffleSongs } from "../utils/queue";
 
 export const handleInteraction = async (
   interaction: Interaction,
@@ -145,7 +150,8 @@ export const handleInteraction = async (
       const voiceChannel = (interaction.member as any).voice?.channel;
       if (!voiceChannel) {
         return interaction.reply({
-          content: "Voce precisa estar em um canal de voz para iniciar a radio!",
+          content:
+            "Voce precisa estar em um canal de voz para iniciar a radio!",
           ephemeral: true,
         });
       }
@@ -177,7 +183,10 @@ export const handleInteraction = async (
           });
           loadedSongs++;
         } catch (error) {
-          console.error(`[Radio] Erro ao carregar favorito "${songData.title}":`, error);
+          console.error(
+            `[Radio] Erro ao carregar favorito "${songData.title}":`,
+            error,
+          );
         }
       }
 
@@ -188,9 +197,10 @@ export const handleInteraction = async (
       }
 
       await interaction.editReply({
-        content: loadedSongs > 0
-          ? `Radio iniciada com ${loadedSongs} musica(s) favoritadas em modo aleatorio e loop.`
-          : "Nao consegui carregar nenhuma musica favoritada para iniciar a radio.",
+        content:
+          loadedSongs > 0
+            ? `Radio iniciada com ${loadedSongs} musica(s) favoritadas em modo aleatorio e loop.`
+            : "Nao consegui carregar nenhuma musica favoritada para iniciar a radio.",
       });
 
       if (interaction.channel?.isTextBased()) {
@@ -229,7 +239,7 @@ export const handleInteraction = async (
   } else if (interaction.isStringSelectMenu()) {
     if (interaction.customId === "select_playlist") {
       const playlistId = parseInt(interaction.values[0]);
-      const songs = getPlaylistSongs(playlistId);
+      const songs = shuffleSongs(getPlaylistSongs(playlistId));
       const voiceChannel = (interaction.member as any).voice?.channel;
 
       if (!voiceChannel) {
@@ -268,18 +278,4 @@ export const handleInteraction = async (
 const getRequestedQueuePage = (customId: string) => {
   const [, page] = customId.split(":");
   return page ? Number(page) : 0;
-};
-
-const shuffleSongs = <T>(songs: T[]) => {
-  const shuffled = [...songs];
-
-  for (let index = shuffled.length - 1; index > 0; index--) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[randomIndex]] = [
-      shuffled[randomIndex],
-      shuffled[index],
-    ];
-  }
-
-  return shuffled;
 };
