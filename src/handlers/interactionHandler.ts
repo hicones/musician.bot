@@ -11,7 +11,7 @@ import {
   ChatInputCommandInteraction,
 } from "discord.js";
 import { MusicManager } from "../music/MusicManager";
-import { createPlayerEmbed, getQueuePageInfo } from "../utils/playerEmbed";
+import { createPlayerEmbed, getQueuePageInfo, getPlayerButtons } from "../utils/playerEmbed";
 import {
   savePlaylist,
   getPlaylists,
@@ -85,24 +85,9 @@ export const handleInteraction = async (
     } else if (interaction.customId === "back_to_player") {
       const history = musicManager.getHistory(interaction.guildId);
       const embed = createPlayerEmbed(queue, history, false);
+      const components = getPlayerButtons();
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId("view_queue:0")
-          .setLabel("Ver Fila")
-          .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId("play_playlist")
-          .setLabel("Tocar Playlist")
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId("start_radio")
-          .setLabel("Rádio")
-          .setEmoji("📻")
-          .setStyle(ButtonStyle.Success),
-      );
-
-      await interaction.update({ embeds: [embed], components: [row] });
+      await interaction.update({ embeds: [embed], components });
     } else if (interaction.customId === "save_playlist_btn") {
       if (!queue || !queue.songs.length) {
         return interaction.reply({

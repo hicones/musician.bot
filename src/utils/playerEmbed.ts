@@ -1,4 +1,4 @@
-import { AttachmentBuilder, EmbedBuilder } from "discord.js";
+import { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { Queue, Song } from "distube";
 import path from "path";
 
@@ -151,4 +151,26 @@ export const getPlayerAttachments = () => {
     new AttachmentBuilder(BANNER_PATH, { name: "banner.png" }),
     new AttachmentBuilder(PLACEHOLDER_PATH, { name: "placeholder.png" }),
   ];
+};
+
+export const getPlayerButtons = (): ActionRowBuilder<ButtonBuilder>[] => {
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId("view_queue:0")
+      .setLabel("Ver Fila")
+      .setEmoji("📋")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("play_playlist")
+      .setLabel("Tocar Playlist")
+      .setEmoji("🎵")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId("start_radio")
+      .setLabel("Rádio")
+      .setEmoji("📻")
+      .setStyle(ButtonStyle.Success),
+  );
+
+  return [row];
 };

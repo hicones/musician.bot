@@ -1,7 +1,7 @@
-import { Client, TextChannel } from 'discord.js';
+import { Client, TextChannel, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { DisTube, Song } from 'distube';
 import { SoundCloudPlugin } from '@distube/soundcloud';
-import { createPlayerEmbed, getPlayerAttachments } from '../utils/playerEmbed';
+import { createPlayerEmbed, getPlayerAttachments, getPlayerButtons } from '../utils/playerEmbed';
 import { formatError } from '../utils/formatError';
 import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
 import { SafeSpotifyPlugin, SafeSpotifyPluginOptions } from './SafeSpotifyPlugin';
@@ -88,7 +88,6 @@ export class MusicManager {
   public async updatePlayerMessage(channel: TextChannel) {
     if (!channel) return;
     
-    // Find the controller message in the music-room
     const messages = await channel.messages.fetch({ limit: 10 });
     const controllerMsg = messages.find(m => m.embeds.length > 0 && m.author.id === channel.client.user?.id);
     
@@ -96,18 +95,17 @@ export class MusicManager {
       const queue = this.distube.getQueue(channel.guildId);
       const history = this.getHistory(channel.guildId);
       const embed = createPlayerEmbed(queue, history);
+      const components = getPlayerButtons();
       
       const attachments = getPlayerAttachments();
-      const payload: any = { embeds: [embed] };
+      const payload: any = { embeds: [embed], components };
 
-      // Determine which file to attach based on the embed's image
       const imageUrl = (embed.data as any).image?.url;
       if (imageUrl === 'attachment://banner.png') {
         payload.files = [attachments[0]];
       } else if (imageUrl === 'attachment://placeholder.png') {
         payload.files = [attachments[1]];
       } else {
-        // If it's a URL (thumbnail), remove attachments to keep it clean
         payload.files = [];
       }
 
