@@ -1,30 +1,9 @@
-import {
-  Interaction,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  StringSelectMenuBuilder,
-  TextChannel,
-  ChatInputCommandInteraction,
-} from "discord.js";
+import { Interaction, ChatInputCommandInteraction } from "discord.js";
 import { MusicManager } from "../music/music-manager";
-import {
-  createPlayerEmbed,
-  getQueuePageInfo,
-  getPlayerButtons,
-} from "../utils/player-embed";
-import {
-  savePlaylist,
-  getPlaylists,
-  getPlaylistSongs,
-  getFavoriteSongs,
-  SongData,
-} from "../database/db";
-import { handleSetupCommand } from "../commands/setup";
-import { shuffleSongs } from "../utils/queue";
+import { handleSetupCommand } from "../commands/setup.js";
+import { handleButtonInteraction } from "./button-handlers.js";
+import { handleModalInteraction } from "./modal-handlers.js";
+import { handleSelectInteraction } from "./select-handlers.js";
 
 export const handleInteraction = async (
   interaction: Interaction,
@@ -32,250 +11,25 @@ export const handleInteraction = async (
 ) => {
   if (!interaction.guildId) return;
 
-  // Handle slash commands
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "setup") {
-      await handleSetupCommand(
-        interaction as ChatInputCommandInteraction,
-        musicManager,
-      );
+      await handleSetupCommand(interaction as ChatInputCommandInteraction, musicManager);
     }
     return;
   }
 
   if (interaction.isButton()) {
-    const queue = musicManager.distube.getQueue(interaction.guildId);
-
-    if (
-      interaction.customId === "view_queue" ||
-      interaction.customId.startsWith("view_queue:")
-    ) {
-      const history = musicManager.getHistory(interaction.guildId);
-
-      const requestedPage = getRequestedQueuePage(interaction.customId);
-      const pageInfo = getQueuePageInfo(queue, history, requestedPage);
-      const embed = createPlayerEmbed(queue, history, true, pageInfo.page);
-
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId("back_to_player")
-          .setLabel("Voltar")
-          .setStyle(ButtonStyle.Primary),
-      );
-
-      if (pageInfo.totalPages > 1) {
-        row.addComponents(
-          new ButtonBuilder()
-            .setCustomId(`view_queue:${Math.max(pageInfo.page - 1, 0)}`)
-            .setLabel("Anterior")
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(pageInfo.page === 0),
-          new ButtonBuilder()
-            .setCustomId(
-              `view_queue:${Math.min(pageInfo.page + 1, pageInfo.totalPages - 1)}`,
-            )
-            .setLabel("Proxima")
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(pageInfo.page >= pageInfo.totalPages - 1),
-        );
-      }
-
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId("save_playlist_btn")
-          .setLabel("Salvar Playlist")
-          .setStyle(ButtonStyle.Success),
-      );
-
-      await interaction.update({ embeds: [embed], components: [row] });
-    } else if (interaction.customId === "back_to_player") {
-      const history = musicManager.getHistory(interaction.guildId);
-      const embed = createPlayerEmbed(queue, history, false);
-      const components = getPlayerButtons();
-
-      await interaction.update({ embeds: [embed], components });
-    } else if (interaction.customId === "save_playlist_btn") {
-      if (!queue || !queue.songs.length) {
-        return interaction.reply({
-          content: "Nao ha musicas na fila para salvar!",
-          ephemeral: true,
-        });
-      }
-
-      const modal = new ModalBuilder()
-        .setCustomId("save_playlist_modal")
-        .setTitle("Salvar Playlist");
-
-      const nameInput = new TextInputBuilder()
-        .setCustomId("playlist_name")
-        .setLabel("Nome da Playlist")
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder("Ex: Minhas Favoritas")
-        .setRequired(true);
-
-      modal.addComponents(
-        new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput),
-      );
-      await interaction.showModal(modal);
-    } else if (interaction.customId === "play_playlist") {
-      const playlists = getPlaylists(interaction.guildId);
-
-      if (playlists.length === 0) {
-        return interaction.reply({
-          content: "Voce nao tem playlists salvas!",
-          ephemeral: true,
-        });
-      }
-
-      const select = new StringSelectMenuBuilder()
-        .setCustomId("select_playlist")
-        .setPlaceholder("Escolha uma playlist...")
-        .addOptions(
-          playlists.map((p) => ({
-            label: p.name,
-            value: p.id.toString(),
-          })),
-        );
-
-      const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-        select,
-      );
-
-      await interaction.reply({
-        content: "Selecione uma playlist para tocar:",
-        components: [row],
-        ephemeral: true,
-      });
-    } else if (interaction.customId === "start_radio") {
-      const voiceChannel = (interaction.member as any).voice?.channel;
-      if (!voiceChannel) {
-        return interaction.reply({
-          content:
-            "Voce precisa estar em um canal de voz para iniciar a radio!",
-          ephemeral: true,
-        });
-      }
-
-      const favoriteSongs = shuffleSongs(getFavoriteSongs(interaction.guildId));
-      if (favoriteSongs.length === 0) {
-        return interaction.reply({
-          content: "Ainda nao ha musicas favoritadas para iniciar a radio.",
-          ephemeral: true,
-        });
-      }
-
-      await interaction.deferReply({ ephemeral: true });
-
-      const queue = musicManager.distube.getQueue(interaction.guildId);
-      musicManager.disableRadioMode(interaction.guildId);
-      if (queue) {
-        queue.stop();
-        musicManager.activityManager.onFinish(queue);
-        musicManager.clearHistory(interaction.guildId);
-      }
-
-      let loadedSongs = 0;
-      for (const songData of favoriteSongs) {
-        try {
-          await musicManager.distube.play(voiceChannel, songData.url, {
-            member: interaction.member as any,
-            textChannel: interaction.channel as TextChannel,
-          });
-          loadedSongs++;
-        } catch (error) {
-          console.error(
-            `[Radio] Erro ao carregar favorito "${songData.title}":`,
-            error,
-          );
-        }
-      }
-
-      const radioQueue = musicManager.distube.getQueue(interaction.guildId);
-      radioQueue?.setRepeatMode(2);
-      if (loadedSongs > 0) {
-        musicManager.enableRadioMode(interaction.guildId);
-      }
-
-      await interaction.editReply({
-        content:
-          loadedSongs > 0
-            ? `Radio iniciada com ${loadedSongs} musica(s) favoritadas em modo aleatorio e loop.`
-            : "Nao consegui carregar nenhuma musica favoritada para iniciar a radio.",
-      });
-
-      if (interaction.channel?.isTextBased()) {
-        musicManager.updatePlayerMessage(interaction.channel as TextChannel);
-      }
-    }
-  } else if (interaction.isModalSubmit()) {
-    if (interaction.customId === "save_playlist_modal") {
-      const name = interaction.fields.getTextInputValue("playlist_name");
-      const queue = musicManager.distube.getQueue(interaction.guildId);
-
-      if (!queue)
-        return interaction.reply({
-          content: "Erro ao salvar: fila vazia.",
-          ephemeral: true,
-        });
-
-      const songs = queue.songs.map((s) => ({
-        title: s.name || "Sem Titulo",
-        url: s.url,
-        duration: s.formattedDuration,
-        thumbnail: s.thumbnail,
-      }));
-
-      savePlaylist(
-        name,
-        interaction.user.id,
-        interaction.guildId!,
-        songs as SongData[],
-      );
-      await interaction.reply({
-        content: `Playlist **${name}** salva com sucesso!`,
-        ephemeral: true,
-      });
-    }
-  } else if (interaction.isStringSelectMenu()) {
-    if (interaction.customId === "select_playlist") {
-      const playlistId = parseInt(interaction.values[0]);
-      const songs = shuffleSongs(getPlaylistSongs(playlistId));
-      const voiceChannel = (interaction.member as any).voice?.channel;
-
-      if (!voiceChannel) {
-        return interaction.reply({
-          content: "Voce precisa estar em um canal de voz!",
-          ephemeral: true,
-        });
-      }
-
-      await interaction.deferUpdate();
-
-      const queue = musicManager.distube.getQueue(interaction.guildId);
-      if (queue) {
-        musicManager.disableRadioMode(interaction.guildId);
-        queue.stop();
-        musicManager.activityManager.onFinish(queue);
-        musicManager.clearHistory(interaction.guildId);
-      }
-
-      for (const songData of songs) {
-        await musicManager.distube.play(voiceChannel, songData.url, {
-          member: interaction.member as any,
-          textChannel: interaction.channel as TextChannel,
-        });
-      }
-
-      await interaction.followUp({
-        content: "Tocando playlist selecionada!",
-        ephemeral: true,
-      });
-      musicManager.updatePlayerMessage(interaction.channel as TextChannel);
-    }
+    await handleButtonInteraction(interaction, musicManager);
+    return;
   }
-};
 
-const getRequestedQueuePage = (customId: string) => {
-  const [, page] = customId.split(":");
-  return page ? Number(page) : 0;
+  if (interaction.isModalSubmit()) {
+    await handleModalInteraction(interaction, musicManager);
+    return;
+  }
+
+  if (interaction.isStringSelectMenu()) {
+    await handleSelectInteraction(interaction, musicManager);
+    return;
+  }
 };
