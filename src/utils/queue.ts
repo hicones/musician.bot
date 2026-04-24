@@ -1,3 +1,5 @@
+import { GuildMember } from "discord.js";
+
 export const shuffleSongs = <T>(songs: T[]) => {
   const shuffled = [...songs];
 
@@ -10,4 +12,12 @@ export const shuffleSongs = <T>(songs: T[]) => {
   }
 
   return shuffled;
+};
+
+export const getHumanMembers = (voiceChannel: {
+  members: Map<string, GuildMember>;
+}): GuildMember[] => {
+  return Array.from(voiceChannel.members.values()).filter(
+    (member) => !member.user.bot,
+  );
 };
