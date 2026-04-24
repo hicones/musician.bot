@@ -2,6 +2,10 @@ import { Playlist, ResolveOptions, Song } from 'distube';
 import { SpotifyPlugin, SpotifyPluginOptions } from '@distube/spotify';
 import { Details, Preview, SpotifyUrlInfoModule, Track } from 'spotify-url-info';
 
+export type SafeSpotifyPluginOptions = SpotifyPluginOptions & {
+  refreshToken?: string;
+};
+
 const spotifyUrlInfo = require('spotify-url-info') as SpotifyUrlInfoModule;
 const spotifyInfo = spotifyUrlInfo(fetch);
 
@@ -18,14 +22,17 @@ export class SafeSpotifyPlugin extends SpotifyPlugin {
   private readonly hasCredentials: boolean;
   private readonly clientId?: string;
   private readonly clientSecret?: string;
+  private readonly refreshToken?: string;
   private token?: string;
   private tokenExpiresAt = 0;
 
-  constructor(options?: SpotifyPluginOptions) {
-    super(options);
-    this.hasCredentials = Boolean(options?.api?.clientId && options.api.clientSecret);
-    this.clientId = options?.api?.clientId;
-    this.clientSecret = options?.api?.clientSecret;
+  constructor(options?: SafeSpotifyPluginOptions) {
+    const { refreshToken, ...spotifyOptions } = options || {};
+    super(spotifyOptions);
+    this.hasCredentials = Boolean(spotifyOptions.api?.clientId && spotifyOptions.api.clientSecret);
+    this.clientId = spotifyOptions.api?.clientId;
+    this.clientSecret = spotifyOptions.api?.clientSecret;
+    this.refreshToken = refreshToken;
   }
 
   async resolve<T>(url: string, options: ResolveOptions<T>): Promise<Song<T> | Playlist<T>> {
@@ -34,6 +41,12 @@ export class SafeSpotifyPlugin extends SpotifyPlugin {
         return await this.resolvePlaylistWithApi(url, options);
       } catch (error) {
         console.warn('[Spotify] Web API nao conseguiu resolver a playlist completa. Usando fallback limitado a 100 faixas.');
+        if (error instanceof Error && error.message.includes('403')) {
+          console.warn(
+            '[Spotify] 403 Forbidden normalmente indica playlist privada/restrita. ' +
+              'Configure SPOTIFY_REFRESH_TOKEN com escopo playlist-read-private para acessar playlists privadas do usuario.',
+          );
+        }
         console.warn(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
         return this.resolveWithScraper(url, options);
       }
@@ -104,13 +117,22 @@ export class SafeSpotifyPlugin extends SpotifyPlugin {
     }
 
     const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const bodyParams = this.refreshToken
+      ? new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: this.refreshToken,
+      })
+      : new URLSearchParams({
+        grant_type: 'client_credentials',
+      });
+
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
         Authorization: `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: 'grant_type=client_credentials',
+      body: bodyParams,
     });
 
     if (!response.ok) {
