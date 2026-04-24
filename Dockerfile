@@ -25,13 +25,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     python3 \
-    python3-pip \
     make \
     g++ \
     && rm -rf /var/lib/apt/lists/*
-
-# Install yt-dlp
-RUN python3 -m pip install -U yt-dlp --break-system-packages
 
 COPY package*.json ./
 # Install only production dependencies (needs build tools for some native addons)

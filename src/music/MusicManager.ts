@@ -1,7 +1,8 @@
-import { Client, TextChannel, EmbedBuilder } from 'discord.js';
+import { Client, TextChannel } from 'discord.js';
 import { DisTube, Song } from 'distube';
-import { YtDlpPlugin } from '@distube/yt-dlp';
 import { createPlayerEmbed } from '../utils/playerEmbed';
+import { formatError } from '../utils/formatError';
+import { SafeYtDlpPlugin } from './SafeYtDlpPlugin';
 
 export interface PlayedSong {
   title: string;
@@ -15,7 +16,7 @@ export class MusicManager {
 
   constructor(client: Client) {
     this.distube = new DisTube(client, {
-      plugins: [new YtDlpPlugin({ update: false })],
+      plugins: [new SafeYtDlpPlugin()],
     });
 
     this.setupEvents();
@@ -36,8 +37,11 @@ export class MusicManager {
         console.log(`[Music] Playlist adicionada: "${playlist.name}" (${playlist.songs.length} músicas)`);
         this.updatePlayerMessage(queue.textChannel as TextChannel);
       })
-      .on('error', (channel: any, e: any) => {
-        console.error(`[Music Error] Ocorreu um erro:`, e);
+      .on('error', (error: Error, queue: any, song?: Song) => {
+        const guildName = queue?.textChannel?.guild?.name || queue?.id || 'desconhecido';
+        const songName = song?.name ? ` | Musica: "${song.name}"` : '';
+        console.error(`[Music Error] Servidor: ${guildName}${songName}`);
+        console.error(formatError(error));
       })
       .on('finish', (queue: any) => {
         console.log(`[Music] Fila finalizada em "${queue.textChannel?.guild.name}"`);
