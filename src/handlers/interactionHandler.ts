@@ -8,6 +8,7 @@ import {
   ButtonStyle,
   StringSelectMenuBuilder,
   TextChannel,
+  ChatInputCommandInteraction,
 } from "discord.js";
 import { MusicManager } from "../music/MusicManager";
 import { createPlayerEmbed, getQueuePageInfo } from "../utils/playerEmbed";
@@ -17,12 +18,24 @@ import {
   getPlaylistSongs,
   SongData,
 } from "../database/db";
+import { handleSetupCommand } from "../commands/setup";
 
 export const handleInteraction = async (
   interaction: Interaction,
   musicManager: MusicManager,
 ) => {
   if (!interaction.guildId) return;
+
+  // Handle slash commands
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === "setup") {
+      await handleSetupCommand(
+        interaction as ChatInputCommandInteraction,
+        musicManager,
+      );
+    }
+    return;
+  }
 
   if (interaction.isButton()) {
     const queue = musicManager.distube.getQueue(interaction.guildId);

@@ -1,10 +1,17 @@
-import { Client, GatewayIntentBits, Partials, TextChannel } from 'discord.js';
-import dotenv from 'dotenv';
-import { MusicManager } from './music/MusicManager';
-import { setupCommand } from './commands/setup';
-import { handleReaction } from './handlers/reactionHandler';
-import { handleInteraction } from './handlers/interactionHandler';
-import { formatError } from './utils/formatError';
+import {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  TextChannel,
+  REST,
+  Routes,
+} from "discord.js";
+import dotenv from "dotenv";
+import { MusicManager } from "./music/MusicManager";
+import { setupCommandData } from "./commands/setup";
+import { handleReaction } from "./handlers/reactionHandler";
+import { handleInteraction } from "./handlers/interactionHandler";
+import { formatError } from "./utils/formatError";
 
 dotenv.config();
 
@@ -22,42 +29,66 @@ const client = new Client({
 const musicManager = new MusicManager(client);
 
 const getMusicRequestType = (input: string) => {
-  if (/^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be|music\.youtube\.com)\//i.test(input)) {
-    return input.includes('list=') || /\/playlist(?:\?|\/)/i.test(input) ? 'Playlist YouTube' : 'URL YouTube';
+  if (
+    /^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be|music\.youtube\.com)\//i.test(
+      input,
+    )
+  ) {
+    return input.includes("list=") || /\/playlist(?:\?|\/)/i.test(input)
+      ? "Playlist YouTube"
+      : "URL YouTube";
   }
 
-  if (/^https?:\/\/open\.spotify\.com\/playlist\//i.test(input)) return 'Playlist Spotify';
-  if (/^https?:\/\/open\.spotify\.com\//i.test(input)) return 'URL Spotify';
-  if (/^https?:\/\/(?:www\.)?soundcloud\.com\//i.test(input)) return 'URL SoundCloud';
-  if (/^https?:\/\//i.test(input)) return 'URL';
+  if (/^https?:\/\/open\.spotify\.com\/playlist\//i.test(input))
+    return "Playlist Spotify";
+  if (/^https?:\/\/open\.spotify\.com\//i.test(input)) return "URL Spotify";
+  if (/^https?:\/\/(?:www\.)?soundcloud\.com\//i.test(input))
+    return "URL SoundCloud";
+  if (/^https?:\/\//i.test(input)) return "URL";
 
-  return 'Busca YouTube';
+  return "Busca YouTube";
 };
 
-client.once('clientReady', () => {
+client.once("ready", async () => {
   console.log(`Bot logado como ${client.user?.tag}`);
-  console.log(`Prefixo configurado: ${process.env.PREFIX || '!'}`);
+
+  // Registrar slash commands
+  try {
+    const rest = new REST({ version: "10" }).setToken(
+      process.env.DISCORD_TOKEN!,
+    );
+    const commands = [setupCommandData.toJSON()];
+
+    console.log(`Registrando ${commands.length} slash command(s)...`);
+
+    await rest.put(Routes.applicationCommands(client.user!.id), {
+      body: commands,
+    });
+
+    console.log("✅ Slash commands registrados com sucesso");
+  } catch (error) {
+    console.error("❌ Erro ao registrar slash commands:", error);
+  }
 });
 
 if (!process.env.DISCORD_TOKEN) {
-  console.error('ERRO: DISCORD_TOKEN nao encontrado no ambiente!');
+  console.error("ERRO: DISCORD_TOKEN nao encontrado no ambiente!");
 }
 
-client.on('messageCreate', async (message) => {
+if (!process.env.ADMIN_USER_IDS) {
+  console.warn(
+    "AVISO: ADMIN_USER_IDS nao configurado. Nenhum user poderá usar /setup",
+  );
+}
+
+client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.guild) return;
 
-  const prefix = process.env.PREFIX || '!';
-
-  // Command setup
-  if (message.content.startsWith(`${prefix}setup`)) {
-    console.log(`[Command] Setup iniciado por ${message.author.tag} no servidor ${message.guild.name}`);
-    await setupCommand(message, musicManager);
-    return;
-  }
+  const prefix = process.env.PREFIX || "!";
 
   // Handle music play via URL or search query in music-room
   const channel = message.channel as TextChannel;
-  if (channel.name === 'music-room') {
+  if (channel.name === "music-room") {
     const requestedSong = message.content.trim();
     if (!requestedSong || requestedSong.startsWith(prefix)) return;
 
@@ -68,7 +99,9 @@ client.on('messageCreate', async (message) => {
     }
 
     const requestType = getMusicRequestType(requestedSong);
-    console.log(`[Music] ${requestType} detectada: ${requestedSong} (Usuario: ${message.author.tag})`);
+    console.log(
+      `[Music] ${requestType} detectada: ${requestedSong} (Usuario: ${message.author.tag})`,
+    );
 
     try {
       await musicManager.distube.play(voiceChannel, requestedSong, {
@@ -85,12 +118,12 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-client.on('messageReactionAdd', async (reaction, user) => {
+client.on("messageReactionAdd", async (reaction, user) => {
   if (reaction.partial) await reaction.fetch();
   await handleReaction(reaction as any, user as any, musicManager);
 });
 
-client.on('interactionCreate', async (interaction) => {
+client.on("interactionCreate", async (interaction) => {
   await handleInteraction(interaction, musicManager);
 });
 

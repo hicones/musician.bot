@@ -1,10 +1,20 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import Database from "better-sqlite3";
+import path from "path";
 
-const db = new Database(path.join(__dirname, '../../data/database.sqlite'));
+const db = new Database(path.join(__dirname, "../../data/database.sqlite"));
 
 // Initialize tables
 db.exec(`
+  CREATE TABLE IF NOT EXISTS guild_config (
+    guild_id TEXT PRIMARY KEY,
+    music_room_id TEXT NOT NULL,
+    player_message_id TEXT,
+    setup_by TEXT NOT NULL,
+    setup_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'active'
+  );
+
   CREATE TABLE IF NOT EXISTS playlists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -24,6 +34,16 @@ db.exec(`
   );
 `);
 
+export interface GuildConfig {
+  guild_id: string;
+  music_room_id: string;
+  player_message_id?: string;
+  setup_by: string;
+  setup_at: string;
+  last_updated: string;
+  status: "active" | "needs_repair" | "deprecated";
+}
+
 export interface Playlist {
   id: number;
   name: string;
@@ -38,16 +58,31 @@ export interface SongData {
   thumbnail?: string;
 }
 
-export const savePlaylist = (name: string, userId: string, guildId: string, songs: SongData[]) => {
-  const insertPlaylist = db.prepare('INSERT INTO playlists (name, user_id, guild_id) VALUES (?, ?, ?)');
-  const insertSong = db.prepare('INSERT INTO playlist_songs (playlist_id, title, url, duration, thumbnail) VALUES (?, ?, ?, ?, ?)');
+export const savePlaylist = (
+  name: string,
+  userId: string,
+  guildId: string,
+  songs: SongData[],
+) => {
+  const insertPlaylist = db.prepare(
+    "INSERT INTO playlists (name, user_id, guild_id) VALUES (?, ?, ?)",
+  );
+  const insertSong = db.prepare(
+    "INSERT INTO playlist_songs (playlist_id, title, url, duration, thumbnail) VALUES (?, ?, ?, ?, ?)",
+  );
 
   const transaction = db.transaction((playlistSongs: SongData[]) => {
     const info = insertPlaylist.run(name, userId, guildId);
     const playlistId = info.lastInsertRowid;
 
     for (const song of playlistSongs) {
-      insertSong.run(playlistId, song.title, song.url, song.duration, song.thumbnail);
+      insertSong.run(
+        playlistId,
+        song.title,
+        song.url,
+        song.duration,
+        song.thumbnail,
+      );
     }
     return playlistId;
   });
@@ -56,11 +91,61 @@ export const savePlaylist = (name: string, userId: string, guildId: string, song
 };
 
 export const getPlaylists = (guildId: string): Playlist[] => {
-  return db.prepare('SELECT * FROM playlists WHERE guild_id = ?').all(guildId) as Playlist[];
+  return db
+    .prepare("SELECT * FROM playlists WHERE guild_id = ?")
+    .all(guildId) as Playlist[];
 };
 
 export const getPlaylistSongs = (playlistId: number): SongData[] => {
-  return db.prepare('SELECT title, url, duration, thumbnail FROM playlist_songs WHERE playlist_id = ?').all(playlistId) as SongData[];
+  return db
+    .prepare(
+      "SELECT title, url, duration, thumbnail FROM playlist_songs WHERE playlist_id = ?",
+    )
+    .all(playlistId) as SongData[];
+};
+
+// Guild config management
+export const saveGuildConfig = (
+  guildId: string,
+  config: Omit<GuildConfig, "setup_at" | "last_updated">,
+) => {
+  const existing = db
+    .prepare("SELECT * FROM guild_config WHERE guild_id = ?")
+    .get(guildId);
+
+  if (existing) {
+    db.prepare(
+      "UPDATE guild_config SET music_room_id = ?, player_message_id = ?, setup_by = ?, last_updated = CURRENT_TIMESTAMP, status = ? WHERE guild_id = ?",
+    ).run(
+      config.music_room_id,
+      config.player_message_id || null,
+      config.setup_by,
+      config.status,
+      guildId,
+    );
+  } else {
+    db.prepare(
+      "INSERT INTO guild_config (guild_id, music_room_id, player_message_id, setup_by, status) VALUES (?, ?, ?, ?, ?)",
+    ).run(
+      guildId,
+      config.music_room_id,
+      config.player_message_id || null,
+      config.setup_by,
+      config.status,
+    );
+  }
+};
+
+export const getGuildConfig = (guildId: string): GuildConfig | null => {
+  return db
+    .prepare("SELECT * FROM guild_config WHERE guild_id = ?")
+    .get(guildId) as GuildConfig | null;
+};
+
+export const updatePlayerMessageId = (guildId: string, messageId: string) => {
+  db.prepare(
+    "UPDATE guild_config SET player_message_id = ?, last_updated = CURRENT_TIMESTAMP WHERE guild_id = ?",
+  ).run(messageId, guildId);
 };
 
 export default db;
