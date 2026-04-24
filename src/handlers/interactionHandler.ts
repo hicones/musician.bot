@@ -161,6 +161,7 @@ export const handleInteraction = async (
       await interaction.deferReply({ ephemeral: true });
 
       const queue = musicManager.distube.getQueue(interaction.guildId);
+      musicManager.disableRadioMode(interaction.guildId);
       if (queue) {
         queue.stop();
         musicManager.activityManager.onFinish(queue);
@@ -182,6 +183,9 @@ export const handleInteraction = async (
 
       const radioQueue = musicManager.distube.getQueue(interaction.guildId);
       radioQueue?.setRepeatMode(2);
+      if (loadedSongs > 0) {
+        musicManager.enableRadioMode(interaction.guildId);
+      }
 
       await interaction.editReply({
         content: loadedSongs > 0
@@ -239,6 +243,7 @@ export const handleInteraction = async (
 
       const queue = musicManager.distube.getQueue(interaction.guildId);
       if (queue) {
+        musicManager.disableRadioMode(interaction.guildId);
         queue.stop();
         musicManager.activityManager.onFinish(queue);
         musicManager.clearHistory(interaction.guildId);

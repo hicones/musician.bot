@@ -56,6 +56,7 @@ export const handleReaction = async (
       break;
     case STOP_EMOJI:
       if (queue) {
+        musicManager.disableRadioMode(guildId);
         queue.stop();
         musicManager.activityManager.onFinish(queue);
         musicManager.clearHistory(guildId);
@@ -104,6 +105,7 @@ export const handleReaction = async (
       }
       break;
     case LEAVE_EMOJI:
+      musicManager.disableRadioMode(guildId);
       musicManager.distube.voices.get(guildId)?.leave();
       musicManager.clearHistory(guildId);
       break;

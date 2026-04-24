@@ -104,11 +104,35 @@ client.on("messageCreate", async (message) => {
     );
 
     try {
+      const guildId = message.guild.id;
+      const wasRadioModeActive = musicManager.isRadioModeActive(guildId);
+      const radioQueue = wasRadioModeActive
+        ? musicManager.distube.getQueue(guildId)
+        : undefined;
+
+      if (wasRadioModeActive) {
+        musicManager.disableRadioMode(guildId);
+        musicManager.clearHistory(guildId);
+
+        if (radioQueue) {
+          radioQueue.setRepeatMode(0);
+          radioQueue.songs.splice(1);
+        }
+      }
+
       await musicManager.distube.play(voiceChannel, requestedSong, {
         member: message.member,
         textChannel: channel,
         message,
       });
+
+      if (radioQueue) {
+        await radioQueue.skip();
+        console.log(
+          `[Radio] Modo radio encerrado; fila substituida pelo novo pedido de ${message.author.tag}`,
+        );
+      }
+
       // Delete original message to keep channel clean
       await message.delete().catch(() => {});
     } catch (e) {
