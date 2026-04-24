@@ -95,8 +95,11 @@ export class MusicManager {
     const topTracksCountry = process.env.SPOTIFY_TOP_TRACKS_COUNTRY?.trim().toUpperCase();
 
     if (!clientId || !clientSecret) {
+      console.warn('[Spotify] Credenciais nao configuradas. Playlists/albums grandes podem ficar limitados a 100 faixas.');
       return {};
     }
+
+    console.log(`[Spotify] Credenciais carregadas (${this.maskSecret(clientId)} / ${this.maskSecret(clientSecret)}).`);
 
     return {
       api: {
@@ -105,5 +108,9 @@ export class MusicManager {
         ...(topTracksCountry && /^[A-Z]{2}$/.test(topTracksCountry) ? { topTracksCountry } : {}),
       },
     };
+  }
+
+  private maskSecret(value: string) {
+    return `${value.slice(0, 4)}...${value.slice(-4)}`;
   }
 }
