@@ -22,14 +22,14 @@ export const handleReaction = async (reaction: MessageReaction, user: User, musi
   if (!emojiName) return;
 
   switch (emojiName) {
-    case '⏯️':
-      if (queue?.paused) queue.resume();
-      else queue?.pause();
-      break;
     case '⏮️':
       try {
         await queue?.previous();
       } catch (e) {}
+      break;
+    case '▶️':
+      if (queue?.paused) queue.resume();
+      else queue?.pause();
       break;
     case '⏭️':
       try {
@@ -37,6 +37,9 @@ export const handleReaction = async (reaction: MessageReaction, user: User, musi
       } catch (e) {
         queue?.stop();
       }
+      break;
+    case '⏹️':
+      queue?.stop();
       break;
     case '🔀':
       queue?.shuffle();
