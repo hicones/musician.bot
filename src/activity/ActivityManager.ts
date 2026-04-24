@@ -151,14 +151,11 @@ export class ActivityManager {
 
       if (queue) {
         try {
-          // Verificar se a fila está vazia (nenhuma música tocando)
-          if (!queue.playing && (!queue.songs || queue.songs.length === 0)) {
-            queue.voice?.leave();
-            console.log(
-              `[Activity] Bot desconectado por inatividade em ${queue.textChannel?.guild?.name} (${Math.round(timeSinceLastActivity / 1000)}s sem atividade)`,
-            );
-            this.clearActivity(guildId);
-          }
+          queue.voice?.leave();
+          console.log(
+            `[Activity] Bot desconectado por inatividade em ${queue.textChannel?.guild?.name} (${Math.round(timeSinceLastActivity / 1000)}s sem atividade)`,
+          );
+          this.clearActivity(guildId);
         } catch (error) {
           console.warn(
             `[Activity] Erro ao desconectar por inatividade: ${(error as Error).message}`,
