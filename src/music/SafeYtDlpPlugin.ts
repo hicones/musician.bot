@@ -1,4 +1,4 @@
-import { DisTubeError, PlayableExtractorPlugin, Playlist, ResolveOptions, Song } from 'distube';
+import { DisTubeError, ExtractorPlugin, Playlist, ResolveOptions, Song } from 'distube';
 import { json } from '@distube/yt-dlp';
 
 type YtDlpVideo = {
@@ -35,7 +35,7 @@ const isPlaylist = (info: YtDlpVideo | YtDlpPlaylist): info is YtDlpPlaylist => 
   return Array.isArray((info as YtDlpPlaylist).entries);
 };
 
-export class SafeYtDlpPlugin extends PlayableExtractorPlugin {
+export class SafeYtDlpPlugin extends ExtractorPlugin {
   validate() {
     return true;
   }
@@ -83,6 +83,17 @@ export class SafeYtDlpPlugin extends PlayableExtractorPlugin {
 
   getRelatedSongs() {
     return [];
+  }
+
+  async searchSong<T>(query: string, options: ResolveOptions<T>) {
+    const info = await this.getInfo(`ytsearch1:${query}`);
+    const firstResult = isPlaylist(info) ? info.entries[0] : info;
+
+    if (!firstResult) {
+      return null;
+    }
+
+    return new SafeYtDlpSong(this, firstResult, options);
   }
 
   private async getInfo(url: string, extraFlags: Record<string, unknown> = {}) {

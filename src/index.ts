@@ -27,7 +27,7 @@ client.once('clientReady', () => {
 });
 
 if (!process.env.DISCORD_TOKEN) {
-  console.error('ERRO: DISCORD_TOKEN não encontrado no ambiente!');
+  console.error('ERRO: DISCORD_TOKEN nao encontrado no ambiente!');
 }
 
 client.on('messageCreate', async (message) => {
@@ -42,29 +42,32 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  // Handle music play via URL in music-room
+  // Handle music play via URL or search query in music-room
   const channel = message.channel as TextChannel;
   if (channel.name === 'music-room') {
+    const requestedSong = message.content.trim();
+    if (!requestedSong || requestedSong.startsWith(prefix)) return;
+
     const voiceChannel = message.member?.voice.channel;
     if (!voiceChannel) {
       // Don't reply here to keep channel clean, maybe delete message
       return;
     }
 
-    if (message.content.includes('http')) {
-      console.log(`[Music] URL detectada: ${message.content} (Usuário: ${message.author.tag})`);
-      try {
-        await musicManager.distube.play(voiceChannel, message.content, {
-          member: message.member,
-          textChannel: channel,
-          message
-        });
-        // Delete original message to keep channel clean
-        await message.delete().catch(() => {});
-      } catch (e) {
-        console.error(`[Music Error] Erro ao tentar tocar URL:`);
-        console.error(formatError(e));
-      }
+    const isUrl = /^https?:\/\//i.test(requestedSong);
+    console.log(`[Music] ${isUrl ? 'URL' : 'Busca'} detectada: ${requestedSong} (Usuario: ${message.author.tag})`);
+
+    try {
+      await musicManager.distube.play(voiceChannel, requestedSong, {
+        member: message.member,
+        textChannel: channel,
+        message,
+      });
+      // Delete original message to keep channel clean
+      await message.delete().catch(() => {});
+    } catch (e) {
+      console.error(`[Music Error] Erro ao tentar tocar ${isUrl ? 'URL' : 'busca'}:`);
+      console.error(formatError(e));
     }
   }
 });
