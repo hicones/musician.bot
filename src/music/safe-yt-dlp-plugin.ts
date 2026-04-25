@@ -32,11 +32,19 @@ type YtDlpPlaylist = {
   thumbnails?: { url: string }[];
 };
 
-const STREAM_FORMATS = [
+type YtDlpAuthProfile = {
+  name: string;
+  useCookies: boolean;
+  extractorArgs?: string;
+};
+
+const DEFAULT_YOUTUBE_EXTRACTOR_ARGS = 'youtube:player_client=android_vr,web_safari';
+const STREAM_FORMATS: Array<string | undefined> = [
   'ba/ba*',
   'bestaudio/best',
   'ba*',
   'best',
+  undefined,
 ];
 
 const isPlaylist = (info: YtDlpVideo | YtDlpPlaylist): info is YtDlpPlaylist => {
@@ -50,7 +58,9 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
 
   async resolve<T>(url: string, options: ResolveOptions<T>) {
     const isPlaylistUrl = /[?&]list=|\/playlist(?:\?|\/|$)/i.test(url);
-    const info = await this.getInfo(url, isPlaylistUrl ? { flatPlaylist: true, yesPlaylist: true } : {});
+    const info = isPlaylistUrl
+      ? await this.getInfo(url, { flatPlaylist: true, yesPlaylist: true })
+      : await this.getInfoWithFormatFallback(url);
 
     if (isPlaylist(info)) {
       if (info.entries.length === 0) {
@@ -79,25 +89,30 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
     }
 
     let lastError: unknown;
-    for (const format of STREAM_FORMATS) {
-      try {
-        const info = await this.getInfo(song.url, { format });
-        if (isPlaylist(info)) {
-          throw new DisTubeError('YTDLP_ERROR', 'Cannot get stream URL of an entire playlist');
-        }
+    for (const authProfile of getYtDlpAuthProfiles()) {
+      for (const format of STREAM_FORMATS) {
+        try {
+          const info = await this.getInfo(song.url, getFormatFlags({}, format), authProfile);
+          if (isPlaylist(info)) {
+            throw new DisTubeError('YTDLP_ERROR', 'Cannot get stream URL of an entire playlist');
+          }
 
-        if (info.url) {
-          return info.url;
-        }
+          if (info.url) {
+            return info.url;
+          }
 
-        lastError = new Error(`yt-dlp did not return a playable stream URL for format ${format}`);
-      } catch (error) {
-        lastError = error;
-        if (!isRequestedFormatUnavailableError(error)) {
-          throw error;
-        }
+          lastError = new Error(`yt-dlp did not return a playable stream URL for format ${format || 'padrao'}`);
+        } catch (error) {
+          lastError = error;
+          if (!isRequestedFormatUnavailableError(error)) {
+            throw error;
+          }
 
-        console.warn(`[YTDLP] Formato ${format} indisponivel para "${song.name}". Tentando fallback...`);
+          console.warn(
+            `[YTDLP] Formato ${format || 'padrao'} indisponivel para "${song.name}" ` +
+              `usando ${authProfile.name}. Tentando fallback...`,
+          );
+        }
       }
     }
 
@@ -123,18 +138,49 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
     return new SafeYtDlpSong(this, firstResult, options);
   }
 
-  private async getInfo(url: string, extraFlags: Record<string, unknown> = {}) {
+  private async getInfo(
+    url: string,
+    extraFlags: Record<string, unknown> = {},
+    authProfile: YtDlpAuthProfile = getDefaultYtDlpAuthProfile(),
+  ) {
     return json(url, {
       dumpSingleJson: true,
       noWarnings: true,
       preferFreeFormats: true,
       skipDownload: true,
       simulate: true,
-      ...getYtDlpAuthFlags(),
+      ...getYtDlpAuthFlags(authProfile),
       ...extraFlags,
     }).catch((error) => {
       throw new DisTubeError('YTDLP_ERROR', error instanceof Error ? error.message : String(error));
     });
+  }
+
+  private async getInfoWithFormatFallback(url: string, extraFlags: Record<string, unknown> = {}) {
+    let lastError: unknown;
+
+    for (const authProfile of getYtDlpAuthProfiles()) {
+      for (const format of STREAM_FORMATS) {
+        try {
+          return await this.getInfo(url, getFormatFlags(extraFlags, format), authProfile);
+        } catch (error) {
+          lastError = error;
+          if (!isRequestedFormatUnavailableError(error)) {
+            throw error;
+          }
+
+          console.warn(
+            `[YTDLP] Formato ${format || 'padrao'} indisponivel ao resolver ${url} ` +
+              `usando ${authProfile.name}. Tentando fallback...`,
+          );
+        }
+      }
+    }
+
+    throw new DisTubeError(
+      'YTDLP_ERROR',
+      lastError instanceof Error ? lastError.message : 'yt-dlp did not return video info',
+    );
   }
 
   private async searchYouTubeMusic(query: string) {
@@ -182,24 +228,59 @@ const toYouTubeMusicWatchUrl = (url: string | undefined) => {
   return `https://music.youtube.com/watch?v=${videoId}`;
 };
 
-const getYtDlpAuthFlags = () => {
+const getDefaultYtDlpAuthProfile = (): YtDlpAuthProfile => ({
+  name: 'cookies/clientes padrao',
+  useCookies: true,
+  extractorArgs: getYouTubeExtractorArgs(),
+});
+
+const getYtDlpAuthProfiles = (): YtDlpAuthProfile[] => {
+  const extractorArgs = getYouTubeExtractorArgs();
+
+  return [
+    {
+      name: 'cookies/clientes padrao',
+      useCookies: true,
+      extractorArgs,
+    },
+    {
+      name: 'sem cookies/clientes padrao',
+      useCookies: false,
+      extractorArgs,
+    },
+  ];
+};
+
+const getYtDlpAuthFlags = (profile: YtDlpAuthProfile) => {
+  const flags: Record<string, unknown> = {};
+  if (profile.extractorArgs) {
+    flags.extractorArgs = profile.extractorArgs;
+  }
+
   const cookiesPath = process.env.YTDLP_COOKIES_PATH?.trim();
-  if (!cookiesPath) {
-    return {};
+  if (!profile.useCookies || !cookiesPath) {
+    return flags;
   }
 
   if (!existsSync(cookiesPath)) {
     console.warn(`[YTDLP] YTDLP_COOKIES_PATH configurado, mas arquivo nao encontrado: ${cookiesPath}`);
-    return {};
+    return flags;
   }
 
-  return {
-    cookies: cookiesPath,
-  };
+  flags.cookies = cookiesPath;
+  return flags;
 };
 
 const isRequestedFormatUnavailableError = (error: unknown) => {
   return error instanceof Error && /Requested format is not available/i.test(error.message);
+};
+
+const getYouTubeExtractorArgs = () => {
+  return process.env.YTDLP_EXTRACTOR_ARGS?.trim() || DEFAULT_YOUTUBE_EXTRACTOR_ARGS;
+};
+
+const getFormatFlags = (baseFlags: Record<string, unknown>, format: string | undefined) => {
+  return format ? { ...baseFlags, format } : baseFlags;
 };
 
 class SafeYtDlpSong<T = unknown> extends Song<T> {
