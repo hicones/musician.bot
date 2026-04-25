@@ -1,8 +1,19 @@
-import { TextChannel } from "discord.js";
-import { getPlaylistSongs } from "../database/db.js";
-import { shuffleSongs } from "../utils/queue.js";
+import {
+  ActionRowBuilder,
+  ModalBuilder,
+  TextChannel,
+  TextInputBuilder,
+  TextInputStyle,
+} from "discord.js";
+import { getPlaylistSongs, getPlaylists } from "../database/db";
+import { isAdminUser } from "../utils/auth";
+import { shuffleSongs } from "../utils/queue";
 
 export const handleSelectInteraction = async (interaction: any, musicManager: any) => {
+  if (interaction.customId === "delete_playlist_select") {
+    return handleDeletePlaylistSelect(interaction);
+  }
+
   if (interaction.customId !== "select_playlist") return;
 
   const playlistId = parseInt(interaction.values[0]);
@@ -33,4 +44,40 @@ export const handleSelectInteraction = async (interaction: any, musicManager: an
   if (interaction.channel) {
     musicManager.updatePlayerMessage(interaction.channel as TextChannel);
   }
+};
+
+const handleDeletePlaylistSelect = async (interaction: any) => {
+  if (!isAdminUser(interaction.user.id)) {
+    return interaction.reply({
+      content: "Voce nao tem permissao para excluir playlists.",
+      ephemeral: true,
+    });
+  }
+
+  const playlistId = Number(interaction.values[0]);
+  const playlist = getPlaylists(interaction.guildId).find((item) => item.id === playlistId);
+
+  if (!playlist) {
+    return interaction.reply({
+      content: "Playlist nao encontrada neste servidor.",
+      ephemeral: true,
+    });
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId(`delete_playlist_confirm:${playlist.id}`)
+    .setTitle("Confirmar exclusao");
+
+  const confirmationInput = new TextInputBuilder()
+    .setCustomId("delete_playlist_confirmation")
+    .setLabel('Digite "EXCLUIR" para confirmar')
+    .setPlaceholder(playlist.name.slice(0, 100))
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(confirmationInput),
+  );
+
+  await interaction.showModal(modal);
 };

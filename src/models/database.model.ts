@@ -22,6 +22,11 @@ export interface SongData {
   thumbnail?: string;
 }
 
+export interface PlaylistSong extends SongData {
+  id: number;
+  playlist_id: number;
+}
+
 export interface FavoriteSongData extends SongData {
   guildId: string;
   userId: string;

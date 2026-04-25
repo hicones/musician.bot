@@ -10,6 +10,8 @@ import {
 import dotenv from "dotenv";
 import { MusicManager } from "./music/music-manager";
 import { setupCommandData } from "./commands/setup";
+import { deletePlaylistCommandData } from "./commands/delete-playlist";
+import { deletePlaylistSongCommandData } from "./commands/delete-playlist-song";
 import { handleReaction } from "./handlers/reaction-handler";
 import { handleInteraction } from "./handlers/interaction-handler";
 import { formatError } from "./utils/format-error";
@@ -59,13 +61,24 @@ client.once("ready", async () => {
     const rest = new REST({ version: "10" }).setToken(
       process.env.DISCORD_TOKEN!,
     );
-    const commands = [setupCommandData.toJSON()];
+    const commands = [
+      setupCommandData.toJSON(),
+      deletePlaylistCommandData.toJSON(),
+      deletePlaylistSongCommandData.toJSON(),
+    ];
 
     console.log(`Registrando ${commands.length} slash command(s)...`);
 
     await rest.put(Routes.applicationCommands(client.user!.id), {
       body: commands,
     });
+
+    for (const guild of client.guilds.cache.values()) {
+      await rest.put(Routes.applicationGuildCommands(client.user!.id, guild.id), {
+        body: commands,
+      });
+      console.log(`[Slash Commands] Registrados em ${guild.name} (${guild.id})`);
+    }
 
     console.log("✅ Slash commands registrados com sucesso");
   } catch (error) {

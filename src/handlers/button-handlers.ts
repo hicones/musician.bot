@@ -9,9 +9,9 @@ import {
 } from "discord.js";
 import { MusicManager } from "../music/music-manager";
 import { createPlayerEmbed, getQueuePageInfo, getPlayerButtons } from "../utils/player-embed";
-import { getPlaylists } from "../database/db.js";
-import { getFavoriteSongs } from "../database/db.js";
-import { shuffleSongs } from "../utils/queue.js";
+import { getPlaylists } from "../database/db";
+import { getFavoriteSongs } from "../database/db";
+import { shuffleSongs } from "../utils/queue";
 
 export const handleButtonInteraction = async (
   interaction: any,
