@@ -105,6 +105,13 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
         } catch (error) {
           lastError = error;
           if (!isRequestedFormatUnavailableError(error)) {
+            if (shouldTryNextAuthProfile(error, authProfile)) {
+              console.warn(
+                `[YTDLP] ${authProfile.name} falhou para "${song.name}". Tentando proximo perfil de autenticacao...`,
+              );
+              break;
+            }
+
             throw error;
           }
 
@@ -166,6 +173,13 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
         } catch (error) {
           lastError = error;
           if (!isRequestedFormatUnavailableError(error)) {
+            if (shouldTryNextAuthProfile(error, authProfile)) {
+              console.warn(
+                `[YTDLP] ${authProfile.name} falhou ao resolver ${url}. Tentando proximo perfil de autenticacao...`,
+              );
+              break;
+            }
+
             throw error;
           }
 
@@ -273,6 +287,14 @@ const getYtDlpAuthFlags = (profile: YtDlpAuthProfile) => {
 
 const isRequestedFormatUnavailableError = (error: unknown) => {
   return error instanceof Error && /Requested format is not available/i.test(error.message);
+};
+
+const shouldTryNextAuthProfile = (error: unknown, profile: YtDlpAuthProfile) => {
+  return profile.useCookies && error instanceof Error && isYoutubeAuthError(error.message);
+};
+
+const isYoutubeAuthError = (message: string) => {
+  return /sign in to confirm|not a bot|cookies-from-browser|use --cookies/i.test(message);
 };
 
 const getYouTubeExtractorArgs = () => {

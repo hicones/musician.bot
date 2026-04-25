@@ -1,5 +1,6 @@
 import { TextChannel } from "discord.js";
 import { getPlaylistSongs } from "../database/db";
+import { formatError } from "../utils/format-error";
 import { shuffleSongs } from "../utils/queue";
 
 export const handleSelectInteraction = async (interaction: any, musicManager: any) => {
@@ -21,14 +22,27 @@ export const handleSelectInteraction = async (interaction: any, musicManager: an
     musicManager.stopAndClearQueue(guildId);
   }
 
+  let loadedSongs = 0;
   for (const songData of songs) {
-    await musicManager.distube.play(voiceChannel, songData.url, {
-      member: interaction.member,
-      textChannel: interaction.channel as TextChannel,
-    });
+    try {
+      await musicManager.distube.play(voiceChannel, songData.url, {
+        member: interaction.member,
+        textChannel: interaction.channel as TextChannel,
+      });
+      loadedSongs++;
+    } catch (error) {
+      console.error(`[Playlist] Erro ao carregar "${songData.title}" da playlist selecionada:`);
+      console.error(formatError(error));
+    }
   }
 
-  await interaction.followUp({ content: "Tocando playlist selecionada!", ephemeral: true });
+  await interaction.followUp({
+    content:
+      loadedSongs > 0
+        ? `Tocando playlist selecionada! ${loadedSongs}/${songs.length} faixa(s) carregada(s).`
+        : "Nao consegui carregar nenhuma faixa da playlist selecionada.",
+    ephemeral: true,
+  });
 
   if (interaction.channel) {
     musicManager.updatePlayerMessage(interaction.channel as TextChannel);

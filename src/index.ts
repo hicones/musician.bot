@@ -172,7 +172,25 @@ client.on("messageReactionAdd", async (reaction, user) => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  await handleInteraction(interaction, musicManager);
+  try {
+    await handleInteraction(interaction, musicManager);
+  } catch (error) {
+    console.error("[Interaction Error]");
+    console.error(formatError(error));
+
+    if (interaction.isRepliable()) {
+      const payload = {
+        content: "Ocorreu um erro ao processar essa interacao.",
+        ephemeral: true,
+      };
+
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp(payload).catch(() => {});
+      } else {
+        await interaction.reply(payload).catch(() => {});
+      }
+    }
+  }
 });
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
