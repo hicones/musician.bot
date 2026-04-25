@@ -1,85 +1,178 @@
 # 🎵 Musician Bot
 
-O **Musician Bot** é um bot de música para Discord moderno e intuitivo, desenvolvido em TypeScript. Ele oferece uma experiência de usuário simplificada através de um canal de controle dedicado e uma interface reativa baseada em embeds.
+Um bot de música para Discord moderno, intuitivo e modular, desenvolvido em TypeScript.
 
 ## ✨ Funcionalidades
 
-- **Canal de Música Dedicado:** Interface centralizada em um canal específico (`#music-room`).
-- **Play Automático:** Basta colar o link da música no canal e o bot cuida do resto (e limpa o chat para você!).
-- **Interface Interativa:** Controle a reprodução através de botões e reações no player.
-- **Sistema de Playlists:** Salve suas músicas favoritas em playlists personalizadas persistidas em banco de dados.
-- **Histórico de Reprodução:** Acompanhe o que já tocou diretamente na interface do player.
-- **Fila Dinâmica:** Visualize e gerencie a fila de reprodução em tempo real.
+### Reprodução de Música
+- **Play Automático:** Cole um link (YouTube, Spotify, SoundCloud) no canal e o bot toca automaticamente
+- **Busca por Nome:** Digite o nome da música para buscar no YouTube
+- **Suporte a Playlists:** YouTube, Spotify e SoundCloud
+- **Fila Dinâmica:** Adicione várias músicas e see a fila crescer
+- **Modo Rádio:** Reproduz favoritos aleatoriamente em loop
 
-## 🚀 Tecnologias Utilizadas
+### Interface
+- **Canal Dedicado:** Interface centralizada em `#music-room`
+- **Player Embed:** Mostra capa, duração, progresso e histórico
+- **Controle por Reações:** Anterior, Play/Pausa, Pular, Parar, Shuffle, Repetir, Favoritar, Sair
+- **Controle por Botões:** Visualizar fila, salvar playlist, tocar playlist, iniciar rádio
 
-- **Runtime:** [Node.js](https://nodejs.org/)
-- **Linguagem:** [TypeScript](https://www.typescriptlang.org/)
-- **Biblioteca Discord:** [Discord.js v14](https://discord.js.org/)
-- **Engine de Áudio:** [DisTube v5](https://distube.js.org/)
-- **Banco de Dados:** [SQLite](https://www.sqlite.org/) (via `better-sqlite3`)
-- **Containerização:** [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+### Gerenciamento
+- **Comando `/setup:** Configura o canal `#music-room` automaticamente
+- **Playlists Persistidas:** Salve e carregue playlists do banco SQLite
+- **Favoritos:**Favorite músicas com reação ⭐ para uso no modo rádio
+- **Histórico:** Veja o que já tocou diretamente no player
+- **Monitoramento de Inatividade:** Após 3 minutos vazio, inicia o rádio automaticamente
 
-## 🛠️ Instalação e Uso
+## 🛠️ Stack
+
+| Categoria | Tecnologia |
+|-----------|-----------|
+| Runtime | Node.js 22.x |
+| Linguagem | TypeScript 6.x (strict mode) |
+| Discord API | Discord.js v14 |
+| Audio Engine | DisTube v5 + yt-dlp |
+| Database | SQLite (better-sqlite3) |
+| Containerização | Docker + Docker Compose |
+
+## 📁 Arquitetura
+
+```
+src/
+├── index.ts                    # Entry point, client setup, eventos
+├── commands/
+│   ├── setup.ts              # Comando /setup (handler)
+│   ├── setup-types.ts        # Interfaces SetupStep, SetupResult
+│   └── setup-steps.ts       # Lógica dos 5 steps do setup
+├── database/
+│   └── db.ts               # Queries SQLite
+├── handlers/
+│   ├── interaction-handler.ts   # Dispatch de interações
+│   ├── button-handlers.ts        # Handlers de botão
+│   ├── modal-handlers.ts        # Handlers de modal
+│   └── select-handlers.ts       # Handlers de select menu
+├── music/
+│   ├── music-manager.ts      # DisTube wrapper, eventos
+│   ├── safe-spotify-plugin.ts   # Spotify resolver customizado
+│   └── safe-yt-dlp-plugin.ts  # YouTube resolver customizado
+├── activity/
+│   └── activity-manager.ts  # Monitoramento de inatividade
+├── utils/
+│   ├── auth.ts             # isAdminUser()
+│   ├── queue.ts           # shuffleSongs, getHumanMembers
+│   ├── interactions.ts    # sendTemporaryFeedback
+│   ├── player-embed.ts    # createPlayerEmbed, getPlayerButtons
+│   ├── setup-embed.ts    # createStepEmbed
+│   └── format-error.ts    # formatError()
+├── types/
+│   └── database.ts        # Tipos do banco (exportados)
+└── models/
+    └── database.model.ts  # Tipos originais do banco
+```
+
+### Padrões Utilizados
+- **Módulos ES com extensões explícitas:** `import from "./file.js"`
+- **Nomenclatura:** kebab-case para arquivos, PascalCase para interfaces
+- **Tipagem Estrita:** Sem `any` (substituído por tipos do Discord.js/DisTube)
+- **Separação de Responsabilidades:** Cada handler em arquivo separado
+
+## 🚀 Como Rodar
 
 ### Pré-requisitos
 
-- Node.js 18+ ou Docker instalado.
-- Token de Bot do Discord (obtido no [Discord Developer Portal](https://discord.com/developers/applications)).
-- FFmpeg instalado no sistema (se não estiver usando Docker).
+- Node.js 22.x **ou** Docker
+- FFmpeg (apenas paradevelopment local)
+- Token de Bot do [Discord Developer Portal](https://discord.com/developers/applications)
 
-### Configuração
+### Variáveis de Ambiente
 
-1. Clone o repositório:
+Crie um arquivo `.env` na raiz do projeto:
 
-   ```bash
-   git clone https://github.com/seu-usuario/musician.bot.git
-   cd musician.bot
-   ```
+```env
+# Obrigatório
+DISCORD_TOKEN=seu_token_do_bot
 
-2. Configure as variáveis de ambiente:
-   Crie um arquivo `.env` na raiz do projeto:
-   ```env
-   DISCORD_TOKEN=seu_token_aqui
-   PREFIX=!
-   ```
+# Opcional - Spotify (para playlists/albums grandes)
+SPOTIFY_CLIENT_ID=seu_client_id
+SPOTIFY_CLIENT_SECRET=seu_client_secret
 
-### Execução Local (Desenvolvimento)
+# Opcional - Usuário (refresh token pessoal)
+SPOTIFY_REFRESH_TOKEN=seu_refresh_token
 
-1. Instale as dependências:
-   ```bash
-   npm install
-   ```
-2. Inicie em modo de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
+# Opcional - Admin (múltiplos IDs separados por vírgula)
+ADMIN_USER_IDS=id1,id2,id3
+```
 
-### Execução via Docker (Recomendado)
-
-Para rodar em produção de forma isolada:
+### Desenvolvimento Local
 
 ```bash
-docker-compose up -d
+# Instalar dependências
+npm install
+
+# Rodar em modo desenvolvimento
+npm run dev
+
+# Build de produção
+npm run build
 ```
+
+### Docker (Recomendado)
+
+```bash
+# Build + run em modo separado
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f
+
+# Parar
+docker-compose down
+```
+
+O Docker cuida de:
+- Node.js 22
+- FFmpeg
+- Persistência do banco em `./data/database.sqlite`
 
 ## 🎮 Como Usar
 
-1. **Setup Inicial:** Após convidar o bot, use o comando `!setup` em qualquer canal. O bot criará um canal chamado `#music-room` com a interface do player.
-2. **Tocar Música:** No canal `#music-room`, apenas cole o link (YouTube, Spotify, etc.) da música desejada.
-3. **Controles:** Utilize as reações ou botões no embed do player para pausar, pular ou parar a música.
+### 1. Convidar o Bot
 
-## 📁 Estrutura do Projeto
+Use o link de convite gerado no Discord Developer Portal com permissões:
+- `Manage Channels`
+- `Send Messages`
+- `Embed Links`
+- `Connect` (Voice)
+- `Speak`
 
-```text
-src/
-├── commands/   # Definições de comandos
-├── database/   # Configuração e queries do SQLite
-├── handlers/   # Tratamento de eventos (interações/reações)
-├── music/      # Lógica central do MusicManager (DisTube)
-├── utils/      # Helpers e gerador de embeds
-└── index.ts    # Ponto de entrada da aplicação
+### 2. Configurar
+
+Em qualquer canal, execute:
 ```
+/setup
+```
+
+O bot criará automaticamente o canal `#music-room` com o player.
+
+### 3. Tocar Música
+
+No canal `#music-room`:
+- **Cole um link:** YouTube, Spotify, SoundCloud
+- **Ou digite o nome:** O bot busca no YouTube
+
+### 4. Controles
+
+Use as reações no embed do player:
+| Emoji | Ação |
+|------|------|
+| ⏮️ | Música anterior |
+| ▶️ | Play/Pausa |
+| ⏭️ | Pular |
+| ⏹️ | Parar e sair |
+| 🔀 | Embaralhar fila |
+| 🔁 | Mudar modo repeat |
+| ⭐ | Favoritar música |
+| 🏠 | Sair do canal |
 
 ---
 
