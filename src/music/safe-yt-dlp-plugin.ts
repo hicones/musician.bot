@@ -32,6 +32,13 @@ type YtDlpPlaylist = {
   thumbnails?: { url: string }[];
 };
 
+const STREAM_FORMATS = [
+  'ba/ba*',
+  'bestaudio/best',
+  'ba*',
+  'best',
+];
+
 const isPlaylist = (info: YtDlpVideo | YtDlpPlaylist): info is YtDlpPlaylist => {
   return Array.isArray((info as YtDlpPlaylist).entries);
 };
@@ -71,16 +78,33 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
       throw new DisTubeError('YTDLP_PLUGIN_INVALID_SONG', 'Cannot get stream url from invalid song.');
     }
 
-    const info = await this.getInfo(song.url, { format: 'ba/ba*' });
-    if (isPlaylist(info)) {
-      throw new DisTubeError('YTDLP_ERROR', 'Cannot get stream URL of an entire playlist');
+    let lastError: unknown;
+    for (const format of STREAM_FORMATS) {
+      try {
+        const info = await this.getInfo(song.url, { format });
+        if (isPlaylist(info)) {
+          throw new DisTubeError('YTDLP_ERROR', 'Cannot get stream URL of an entire playlist');
+        }
+
+        if (info.url) {
+          return info.url;
+        }
+
+        lastError = new Error(`yt-dlp did not return a playable stream URL for format ${format}`);
+      } catch (error) {
+        lastError = error;
+        if (!isRequestedFormatUnavailableError(error)) {
+          throw error;
+        }
+
+        console.warn(`[YTDLP] Formato ${format} indisponivel para "${song.name}". Tentando fallback...`);
+      }
     }
 
-    if (!info.url) {
-      throw new DisTubeError('YTDLP_ERROR', 'yt-dlp did not return a playable stream URL');
-    }
-
-    return info.url;
+    throw new DisTubeError(
+      'YTDLP_ERROR',
+      lastError instanceof Error ? lastError.message : 'yt-dlp did not return a playable stream URL',
+    );
   }
 
   getRelatedSongs() {
@@ -172,6 +196,10 @@ const getYtDlpAuthFlags = () => {
   return {
     cookies: cookiesPath,
   };
+};
+
+const isRequestedFormatUnavailableError = (error: unknown) => {
+  return error instanceof Error && /Requested format is not available/i.test(error.message);
 };
 
 class SafeYtDlpSong<T = unknown> extends Song<T> {
