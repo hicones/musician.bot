@@ -1,5 +1,6 @@
 import { DisTubeError, ExtractorPlugin, Playlist, ResolveOptions, Song } from 'distube';
 import { json } from '@distube/yt-dlp';
+import { existsSync } from 'fs';
 
 type YtDlpVideo = {
   id: string;
@@ -105,6 +106,7 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
       preferFreeFormats: true,
       skipDownload: true,
       simulate: true,
+      ...getYtDlpAuthFlags(),
       ...extraFlags,
     }).catch((error) => {
       throw new DisTubeError('YTDLP_ERROR', error instanceof Error ? error.message : String(error));
@@ -154,6 +156,22 @@ const toYouTubeMusicWatchUrl = (url: string | undefined) => {
   if (!videoId) return url;
 
   return `https://music.youtube.com/watch?v=${videoId}`;
+};
+
+const getYtDlpAuthFlags = () => {
+  const cookiesPath = process.env.YTDLP_COOKIES_PATH?.trim();
+  if (!cookiesPath) {
+    return {};
+  }
+
+  if (!existsSync(cookiesPath)) {
+    console.warn(`[YTDLP] YTDLP_COOKIES_PATH configurado, mas arquivo nao encontrado: ${cookiesPath}`);
+    return {};
+  }
+
+  return {
+    cookies: cookiesPath,
+  };
 };
 
 class SafeYtDlpSong<T = unknown> extends Song<T> {
