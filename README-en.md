@@ -92,6 +92,9 @@ Create a `.env` file in the project root:
 # Required
 DISCORD_TOKEN=your_bot_token
 
+# Required - Admin (only bot administrators can use certain commands)
+ADMIN_USER_IDS=id1,id2,id3 (multiple IDs separated by comma)
+
 # Optional - Spotify (for large playlists/albums)
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
@@ -99,8 +102,6 @@ SPOTIFY_CLIENT_SECRET=your_client_secret
 # Optional - User (personal refresh token)
 SPOTIFY_REFRESH_TOKEN=your_refresh_token
 
-# Optional - Admin (multiple IDs separated by comma)
-ADMIN_USER_IDS=id1,id2,id3
 ```
 
 ### Local Development
