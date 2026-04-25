@@ -1,15 +1,25 @@
 import {
   ActionRowBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
-  StringSelectMenuBuilder,
+  ModalBuilder,
   SlashCommandBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } from "discord.js";
 import { getPlaylists } from "../database/db";
 import { isAdminUser } from "../utils/auth";
 
 export const deletePlaylistCommandData = new SlashCommandBuilder()
   .setName("delete-playlist")
-  .setDescription("Exclui uma playlist salva");
+  .setDescription("Exclui uma playlist salva")
+  .addStringOption((option) =>
+    option
+      .setName("playlist")
+      .setDescription("Playlist que sera excluida")
+      .setRequired(true)
+      .setAutocomplete(true),
+  );
 
 export const handleDeletePlaylistCommand = async (
   interaction: ChatInputCommandInteraction,
@@ -21,29 +31,61 @@ export const handleDeletePlaylistCommand = async (
     });
   }
 
-  const playlists = getPlaylists(interaction.guildId!);
-  if (playlists.length === 0) {
+  const playlistId = Number(interaction.options.getString("playlist", true));
+  const playlist = getPlaylists(interaction.guildId!).find(
+    (item) => item.id === playlistId,
+  );
+
+  if (!playlist) {
     return interaction.reply({
-      content: "Nao ha playlists salvas neste servidor.",
+      content: "Playlist nao encontrada neste servidor.",
       ephemeral: true,
     });
   }
 
-  const select = new StringSelectMenuBuilder()
-    .setCustomId("delete_playlist_select")
-    .setPlaceholder("Escolha uma playlist para excluir...")
-    .addOptions(
-      playlists.slice(0, 25).map((playlist) => ({
-        label: playlist.name.slice(0, 100),
-        value: playlist.id.toString(),
-      })),
-    );
+  const modal = new ModalBuilder()
+    .setCustomId(`delete_playlist_confirm:${playlist.id}`)
+    .setTitle("Confirmar exclusao");
 
-  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+  const confirmationInput = new TextInputBuilder()
+    .setCustomId("delete_playlist_confirmation")
+    .setLabel('Digite "EXCLUIR" para confirmar')
+    .setPlaceholder(playlist.name.slice(0, 100))
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
 
-  await interaction.reply({
-    content: "Selecione a playlist que deseja excluir.",
-    components: [row],
-    ephemeral: true,
-  });
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(confirmationInput),
+  );
+
+  await interaction.showModal(modal);
+};
+
+export const handleDeletePlaylistAutocomplete = async (
+  interaction: AutocompleteInteraction,
+) => {
+  if (!interaction.guildId || !isAdminUser(interaction.user.id)) {
+    return interaction.respond([]);
+  }
+
+  const focusedValue = normalizeSearchValue(interaction.options.getFocused());
+  const options = getPlaylists(interaction.guildId)
+    .filter((playlist) =>
+      normalizeSearchValue(playlist.name).includes(focusedValue),
+    )
+    .slice(0, 25)
+    .map((playlist) => ({
+      name: playlist.name.slice(0, 100),
+      value: playlist.id.toString(),
+    }));
+
+  return interaction.respond(options);
+};
+
+const normalizeSearchValue = (value: string) => {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 };

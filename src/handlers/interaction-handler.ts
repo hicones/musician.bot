@@ -1,7 +1,10 @@
 import { Interaction, ChatInputCommandInteraction } from "discord.js";
 import { MusicManager } from "../music/music-manager";
 import { handleSetupCommand } from "../commands/setup";
-import { handleDeletePlaylistCommand } from "../commands/delete-playlist";
+import {
+  handleDeletePlaylistAutocomplete,
+  handleDeletePlaylistCommand,
+} from "../commands/delete-playlist";
 import {
   handleDeletePlaylistSongAutocomplete,
   handleDeletePlaylistSongCommand,
@@ -30,6 +33,9 @@ export const handleInteraction = async (
   if (!interaction.guildId) return;
 
   if (interaction.isAutocomplete()) {
+    if (interaction.commandName === "delete-playlist") {
+      await handleDeletePlaylistAutocomplete(interaction);
+    }
     if (interaction.commandName === "delete-playlist-song") {
       await handleDeletePlaylistSongAutocomplete(interaction);
     }
