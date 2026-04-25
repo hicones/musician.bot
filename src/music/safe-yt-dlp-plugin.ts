@@ -1,6 +1,8 @@
 import { DisTubeError, ExtractorPlugin, Playlist, ResolveOptions, Song } from 'distube';
 import { json } from '@distube/yt-dlp';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { dirname, join } from 'path';
 
 type YtDlpVideo = {
   id: string;
@@ -271,7 +273,7 @@ const getYtDlpAuthFlags = (profile: YtDlpAuthProfile) => {
     flags.extractorArgs = profile.extractorArgs;
   }
 
-  const cookiesPath = process.env.YTDLP_COOKIES_PATH?.trim();
+  const cookiesPath = getYtDlpCookiesPath();
   if (!profile.useCookies || !cookiesPath) {
     return flags;
   }
@@ -283,6 +285,42 @@ const getYtDlpAuthFlags = (profile: YtDlpAuthProfile) => {
 
   flags.cookies = cookiesPath;
   return flags;
+};
+
+const getYtDlpCookiesPath = () => {
+  const configuredPath = process.env.YTDLP_COOKIES_PATH?.trim();
+  if (configuredPath) {
+    return configuredPath;
+  }
+
+  const inlineCookies = getInlineCookies();
+  if (!inlineCookies) {
+    return undefined;
+  }
+
+  const inlineCookiesPath =
+    process.env.YTDLP_COOKIES_INLINE_PATH?.trim() || join(tmpdir(), 'youtube-cookies.txt');
+
+  try {
+    mkdirSync(dirname(inlineCookiesPath), { recursive: true });
+    writeFileSync(inlineCookiesPath, inlineCookies, { mode: 0o600 });
+    return inlineCookiesPath;
+  } catch (error) {
+    console.warn(
+      `[YTDLP] Nao foi possivel gravar cookies inline em ${inlineCookiesPath}: ${(error as Error).message}`,
+    );
+    return undefined;
+  }
+};
+
+const getInlineCookies = () => {
+  const base64Cookies = process.env.YTDLP_COOKIES_BASE64?.trim();
+  if (base64Cookies) {
+    return Buffer.from(base64Cookies, 'base64').toString('utf8');
+  }
+
+  const cookiesContent = process.env.YTDLP_COOKIES_CONTENT?.trim();
+  return cookiesContent ? cookiesContent.replace(/\\n/g, '\n') : undefined;
 };
 
 const isRequestedFormatUnavailableError = (error: unknown) => {

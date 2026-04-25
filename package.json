@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
     "build": "tsc",
+    "prepare:yt-dlp": "node scripts/ensure-yt-dlp.cjs",
+    "postinstall": "npm run prepare:yt-dlp",
+    "prestart": "npm run prepare:yt-dlp",
     "start": "node dist/index.js"
   },
   "keywords": [],

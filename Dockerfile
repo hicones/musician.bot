@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
+COPY scripts ./scripts
 RUN npm install
 
 COPY . .
@@ -30,8 +31,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
+COPY scripts ./scripts
 # Install only production dependencies (needs build tools for some native addons)
 RUN npm install --omit=dev
+RUN npm run prepare:yt-dlp
 
 # Copy compiled files from build stage
 COPY --from=build /app/dist ./dist
