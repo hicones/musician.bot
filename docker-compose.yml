@@ -8,6 +8,8 @@ services:
     volumes:
       - ./data:/app/data
       - ./assets:/app/assets
+      # Optional: place a Netscape-format YouTube cookies file at ./data/youtube-cookies.txt
+      # and set YTDLP_COOKIES_PATH=/app/data/youtube-cookies.txt in .env.
     logging:
       driver: "json-file"
       options:
