@@ -5,19 +5,22 @@ Um bot de música para Discord moderno, intuitivo e modular, desenvolvido em Typ
 ## ✨ Funcionalidades
 
 ### Reprodução de Música
+
 - **Play Automático:** Cole um link (YouTube, Spotify, SoundCloud) no canal e o bot toca automaticamente
 - **Busca por Nome:** Digite o nome da música para buscar no YouTube
 - **Suporte a Playlists:** YouTube, Spotify e SoundCloud
-- **Fila Dinâmica:** Adicione várias músicas e see a fila crescer
+- **Fila Dinâmica:** Adicione várias músicas e veja a fila crescer
 - **Modo Rádio:** Reproduz favoritos aleatoriamente em loop
 
 ### Interface
+
 - **Canal Dedicado:** Interface centralizada em `#music-room`
 - **Player Embed:** Mostra capa, duração, progresso e histórico
 - **Controle por Reações:** Anterior, Play/Pausa, Pular, Parar, Shuffle, Repetir, Favoritar, Sair
 - **Controle por Botões:** Visualizar fila, salvar playlist, tocar playlist, iniciar rádio
 
 ### Gerenciamento
+
 - **Comando `/setup:** Configura o canal `#music-room` automaticamente
 - **Playlists Persistidas:** Salve e carregue playlists do banco SQLite
 - **Favoritos:**Favorite músicas com reação ⭐ para uso no modo rádio
@@ -26,14 +29,14 @@ Um bot de música para Discord moderno, intuitivo e modular, desenvolvido em Typ
 
 ## 🛠️ Stack
 
-| Categoria | Tecnologia |
-|-----------|-----------|
-| Runtime | Node.js 22.x |
-| Linguagem | TypeScript 6.x (strict mode) |
-| Discord API | Discord.js v14 |
-| Audio Engine | DisTube v5 + yt-dlp |
-| Database | SQLite (better-sqlite3) |
-| Containerização | Docker + Docker Compose |
+| Categoria       | Tecnologia                   |
+| --------------- | ---------------------------- |
+| Runtime         | Node.js 22.x                 |
+| Linguagem       | TypeScript 6.x (strict mode) |
+| Discord API     | Discord.js v14               |
+| Audio Engine    | DisTube v5 + yt-dlp          |
+| Database        | SQLite (better-sqlite3)      |
+| Containerização | Docker + Docker Compose      |
 
 ## 📁 Arquitetura
 
@@ -71,6 +74,7 @@ src/
 ```
 
 ### Padrões Utilizados
+
 - **Módulos ES com extensões explícitas:** `import from "./file.js"`
 - **Nomenclatura:** kebab-case para arquivos, PascalCase para interfaces
 - **Tipagem Estrita:** Sem `any` (substituído por tipos do Discord.js/DisTube)
@@ -81,7 +85,7 @@ src/
 ### Pré-requisitos
 
 - Node.js 22.x **ou** Docker
-- FFmpeg (apenas paradevelopment local)
+- FFmpeg
 - Token de Bot do [Discord Developer Portal](https://discord.com/developers/applications)
 
 ### Variáveis de Ambiente
@@ -92,15 +96,15 @@ Crie um arquivo `.env` na raiz do projeto:
 # Obrigatório
 DISCORD_TOKEN=seu_token_do_bot
 
+# Obrigatório - Admin (somente administradores do bot podem usar certos comandos)
+ADMIN_USER_IDS=id1,id2,id3 (múltiplos IDs separados por vírgula)
+
 # Opcional - Spotify (para playlists/albums grandes)
 SPOTIFY_CLIENT_ID=seu_client_id
 SPOTIFY_CLIENT_SECRET=seu_client_secret
 
 # Opcional - Usuário (refresh token pessoal)
 SPOTIFY_REFRESH_TOKEN=seu_refresh_token
-
-# Opcional - Admin (múltiplos IDs separados por vírgula)
-ADMIN_USER_IDS=id1,id2,id3
 ```
 
 ### Desenvolvimento Local
@@ -130,6 +134,7 @@ docker-compose down
 ```
 
 O Docker cuida de:
+
 - Node.js 22
 - FFmpeg
 - Persistência do banco em `./data/database.sqlite`
@@ -139,6 +144,7 @@ O Docker cuida de:
 ### 1. Convidar o Bot
 
 Use o link de convite gerado no Discord Developer Portal com permissões:
+
 - `Manage Channels`
 - `Send Messages`
 - `Embed Links`
@@ -148,6 +154,7 @@ Use o link de convite gerado no Discord Developer Portal com permissões:
 ### 2. Configurar
 
 Em qualquer canal, execute:
+
 ```
 /setup
 ```
@@ -157,6 +164,7 @@ O bot criará automaticamente o canal `#music-room` com o player.
 ### 3. Tocar Música
 
 No canal `#music-room`:
+
 - **Cole um link:** YouTube, Spotify, SoundCloud
 - **Ou digite o nome:** O bot busca no YouTube
 
