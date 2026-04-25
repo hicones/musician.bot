@@ -6,11 +6,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  TextChannel,
 } from "discord.js";
 import { MusicManager } from "../music/music-manager";
 import { createPlayerEmbed, getQueuePageInfo, getPlayerButtons } from "../utils/player-embed";
-import { savePlaylist, type SongData } from "../database/db.js";
 import { getPlaylists } from "../database/db.js";
 import { getFavoriteSongs } from "../database/db.js";
 import { shuffleSongs } from "../utils/queue.js";

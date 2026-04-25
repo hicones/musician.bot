@@ -1,5 +1,5 @@
 import { EmbedBuilder } from "discord.js";
-import type { SetupStep } from "../commands/setup-types";
+import type { SetupStep } from "../models/setup.model";
 
 export const createStepEmbed = (
   title: string,

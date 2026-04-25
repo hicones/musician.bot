@@ -6,7 +6,7 @@ import type {
   SongData,
   FavoriteSongData,
   FavoriteSong,
-} from "../types/database.js";
+} from "../models/database.model";
 
 export type {
   GuildConfig,

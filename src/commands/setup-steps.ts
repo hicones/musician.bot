@@ -2,7 +2,7 @@ import { TextChannel } from "discord.js";
 import { MusicManager } from "../music/music-manager";
 import { saveGuildConfig } from "../database/db";
 import { getPlayerAttachments, createPlayerEmbed, getPlayerButtons } from "../utils/player-embed";
-import type { SetupStep, SetupResult } from "./setup-types";
+import type { SetupStep, SetupResult } from "../models/setup.model";
 
 const PLAYER_EMOJIS = [
   "\u23EE\uFE0F",
