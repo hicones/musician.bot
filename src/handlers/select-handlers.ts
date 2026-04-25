@@ -1,6 +1,6 @@
 import { TextChannel } from "discord.js";
-import { getPlaylistSongs } from "../database/db.js";
-import { shuffleSongs } from "../utils/queue.js";
+import { getPlaylistSongs } from "../database/db";
+import { shuffleSongs } from "../utils/queue";
 
 export const handleSelectInteraction = async (interaction: any, musicManager: any) => {
   if (interaction.customId !== "select_playlist") return;

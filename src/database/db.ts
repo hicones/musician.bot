@@ -4,11 +4,19 @@ import type {
   GuildConfig,
   Playlist,
   SongData,
+  PlaylistSong,
   FavoriteSongData,
   FavoriteSong,
 } from "../models/database.model";
 
-export type { GuildConfig, Playlist, SongData, FavoriteSongData, FavoriteSong };
+export type {
+  GuildConfig,
+  Playlist,
+  SongData,
+  PlaylistSong,
+  FavoriteSongData,
+  FavoriteSong,
+};
 
 const db = new Database(path.join(__dirname, "../../data/database.sqlite"));
 
@@ -112,6 +120,81 @@ export const getPlaylistSongs = (playlistId: number): SongData[] => {
     .all(playlistId) as SongData[];
 };
 
+export const getPlaylistSongsWithIds = (playlistId: number): PlaylistSong[] => {
+  return db
+    .prepare(
+      "SELECT id, playlist_id, title, url, duration, thumbnail FROM playlist_songs WHERE playlist_id = ? ORDER BY id ASC",
+    )
+    .all(playlistId) as PlaylistSong[];
+};
+
+export const addPlaylistSong = (
+  playlistId: number,
+  guildId: string,
+  song: SongData,
+) => {
+  const playlist = db
+    .prepare("SELECT id FROM playlists WHERE id = ? AND guild_id = ?")
+    .get(playlistId, guildId) as Pick<Playlist, "id"> | undefined;
+
+  if (!playlist) {
+    return false;
+  }
+
+  const info = db
+    .prepare(
+      "INSERT INTO playlist_songs (playlist_id, title, url, duration, thumbnail) VALUES (?, ?, ?, ?, ?)",
+    )
+    .run(playlistId, song.title, song.url, song.duration, song.thumbnail);
+
+  return info.changes > 0;
+};
+
+export const deletePlaylist = (playlistId: number, guildId: string) => {
+  const transaction = db.transaction(() => {
+    const playlist = db
+      .prepare("SELECT id FROM playlists WHERE id = ? AND guild_id = ?")
+      .get(playlistId, guildId) as Pick<Playlist, "id"> | undefined;
+
+    if (!playlist) {
+      return false;
+    }
+
+    db.prepare("DELETE FROM playlist_songs WHERE playlist_id = ?").run(playlistId);
+    const info = db
+      .prepare("DELETE FROM playlists WHERE id = ? AND guild_id = ?")
+      .run(playlistId, guildId);
+
+    return info.changes > 0;
+  });
+
+  return transaction();
+};
+
+export const deletePlaylistSong = (
+  playlistId: number,
+  songId: number,
+  guildId: string,
+) => {
+  const transaction = db.transaction(() => {
+    const playlist = db
+      .prepare("SELECT id FROM playlists WHERE id = ? AND guild_id = ?")
+      .get(playlistId, guildId) as Pick<Playlist, "id"> | undefined;
+
+    if (!playlist) {
+      return false;
+    }
+
+    const info = db
+      .prepare("DELETE FROM playlist_songs WHERE id = ? AND playlist_id = ?")
+      .run(songId, playlistId);
+
+    return info.changes > 0;
+  });
+
+  return transaction();
+};
+
 export const saveFavoriteSong = (song: FavoriteSongData) => {
   const info = db
     .prepare(
@@ -135,6 +218,14 @@ export const getFavoriteSongs = (guildId: string): FavoriteSong[] => {
       "SELECT id, guild_id, user_id, title, url, duration, thumbnail, favorited_at FROM favorite_songs WHERE guild_id = ? ORDER BY favorited_at ASC",
     )
     .all(guildId) as FavoriteSong[];
+};
+
+export const deleteFavoriteSong = (favoriteId: number, guildId: string) => {
+  const info = db
+    .prepare("DELETE FROM favorite_songs WHERE id = ? AND guild_id = ?")
+    .run(favoriteId, guildId);
+
+  return info.changes > 0;
 };
 
 // Guild config management

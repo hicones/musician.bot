@@ -10,6 +10,12 @@ import {
 import dotenv from "dotenv";
 import { MusicManager } from "./music/music-manager";
 import { setupCommandData } from "./commands/setup";
+import { deletePlaylistCommandData } from "./commands/delete-playlist";
+import { deletePlaylistSongCommandData } from "./commands/delete-playlist-song";
+import { addCurrentToPlaylistCommandData } from "./commands/add-current-to-playlist";
+import { removeFavoriteCommandData } from "./commands/remove-favorite";
+import { exportPlaylistCommandData } from "./commands/export-playlist";
+import { importPlaylistCommandData } from "./commands/import-playlist";
 import { handleReaction } from "./handlers/reaction-handler";
 import { handleInteraction } from "./handlers/interaction-handler";
 import { formatError } from "./utils/format-error";
@@ -59,13 +65,29 @@ client.once("ready", async () => {
     const rest = new REST({ version: "10" }).setToken(
       process.env.DISCORD_TOKEN!,
     );
-    const commands = [setupCommandData.toJSON()];
+    const commands = [
+      setupCommandData.toJSON(),
+      deletePlaylistCommandData.toJSON(),
+      deletePlaylistSongCommandData.toJSON(),
+      addCurrentToPlaylistCommandData.toJSON(),
+      removeFavoriteCommandData.toJSON(),
+      exportPlaylistCommandData.toJSON(),
+      importPlaylistCommandData.toJSON(),
+    ];
 
-    console.log(`Registrando ${commands.length} slash command(s)...`);
+    console.log(`Registrando ${commands.length} slash command(s) por servidor...`);
 
     await rest.put(Routes.applicationCommands(client.user!.id), {
-      body: commands,
+      body: [],
     });
+    console.log("[Slash Commands] Comandos globais limpos para evitar duplicidade");
+
+    for (const guild of client.guilds.cache.values()) {
+      await rest.put(Routes.applicationGuildCommands(client.user!.id, guild.id), {
+        body: commands,
+      });
+      console.log(`[Slash Commands] Registrados em ${guild.name} (${guild.id})`);
+    }
 
     console.log("✅ Slash commands registrados com sucesso");
   } catch (error) {

@@ -9,12 +9,12 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { createPlayerEmbed, getPlayerAttachments, getPlayerButtons } from "../utils/player-embed.js";
-import { createStepEmbed } from "../utils/setup-embed.js";
-import { MusicManager } from "../music/music-manager.js";
-import { getGuildConfig, saveGuildConfig } from "../database/db.js";
-import { isAdminUser } from "../utils/auth.js";
-import { performSetup } from "./setup-steps.js";
+import { createPlayerEmbed, getPlayerAttachments, getPlayerButtons } from "../utils/player-embed";
+import { createStepEmbed } from "../utils/setup-embed";
+import { MusicManager } from "../music/music-manager";
+import { getGuildConfig, saveGuildConfig } from "../database/db";
+import { isAdminUser } from "../utils/auth";
+import { performSetup } from "./setup-steps";
 
 export const setupCommandData = new SlashCommandBuilder()
   .setName("setup")
