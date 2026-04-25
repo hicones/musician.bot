@@ -75,11 +75,12 @@ client.once("ready", async () => {
       importPlaylistCommandData.toJSON(),
     ];
 
-    console.log(`Registrando ${commands.length} slash command(s)...`);
+    console.log(`Registrando ${commands.length} slash command(s) por servidor...`);
 
     await rest.put(Routes.applicationCommands(client.user!.id), {
-      body: commands,
+      body: [],
     });
+    console.log("[Slash Commands] Comandos globais limpos para evitar duplicidade");
 
     for (const guild of client.guilds.cache.values()) {
       await rest.put(Routes.applicationGuildCommands(client.user!.id, guild.id), {
