@@ -184,4 +184,4 @@ Use as reações no embed do player:
 
 ---
 
-Desenvolvido por Hicones
+Desenvolvido por Hicones e Gabriel Souza

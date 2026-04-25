@@ -87,8 +87,9 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
   }
 
   async searchSong<T>(query: string, options: ResolveOptions<T>) {
-    const info = await this.getInfo(`ytsearch1:${query}`);
-    const firstResult = isPlaylist(info) ? info.entries[0] : info;
+    const firstResult =
+      (await this.searchYouTubeMusic(query)) ||
+      (await this.searchYouTube(query));
 
     if (!firstResult) {
       return null;
@@ -109,7 +110,51 @@ export class SafeYtDlpPlugin extends ExtractorPlugin {
       throw new DisTubeError('YTDLP_ERROR', error instanceof Error ? error.message : String(error));
     });
   }
+
+  private async searchYouTubeMusic(query: string) {
+    const info = await this.getInfo(getYouTubeMusicSearchUrl(query), { flatPlaylist: true });
+    const entries = isPlaylist(info) ? info.entries : [info];
+    const firstResult = entries.find(isPlayableSearchEntry);
+
+    if (!firstResult) {
+      return null;
+    }
+
+    return {
+      ...firstResult,
+      webpage_url: toYouTubeMusicWatchUrl(firstResult.webpage_url || firstResult.original_url || firstResult.url),
+    };
+  }
+
+  private async searchYouTube(query: string) {
+    const info = await this.getInfo(`ytsearch1:${query}`);
+    const entries = isPlaylist(info) ? info.entries : [info];
+
+    return entries.find(isPlayableSearchEntry) || null;
+  }
 }
+
+const getYouTubeMusicSearchUrl = (query: string) => {
+  return `https://music.youtube.com/search?q=${encodeURIComponent(query)}`;
+};
+
+const isPlayableSearchEntry = (entry: YtDlpVideo | undefined) => {
+  if (!entry?.id || !entry.title) {
+    return false;
+  }
+
+  const url = entry.webpage_url || entry.original_url || entry.url;
+  return Boolean(url && /\/watch\?/i.test(url));
+};
+
+const toYouTubeMusicWatchUrl = (url: string | undefined) => {
+  if (!url) return url;
+
+  const videoId = new URL(url).searchParams.get('v');
+  if (!videoId) return url;
+
+  return `https://music.youtube.com/watch?v=${videoId}`;
+};
 
 class SafeYtDlpSong<T = unknown> extends Song<T> {
   constructor(plugin: SafeYtDlpPlugin, info: YtDlpVideo, options?: ResolveOptions<T>) {

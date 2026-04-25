@@ -5,6 +5,7 @@ A modern, intuitive and modular music bot for Discord, built with TypeScript.
 ## ✨ Features
 
 ### Music Playback
+
 - **Auto Play:** Paste a link (YouTube, Spotify, SoundCloud) in the channel and the bot plays automatically
 - **Search by Name:** Type the song name to search on YouTube
 - **Playlist Support:** YouTube, Spotify and SoundCloud
@@ -12,12 +13,14 @@ A modern, intuitive and modular music bot for Discord, built with TypeScript.
 - **Radio Mode:** Play favorites randomly on loop
 
 ### Interface
+
 - **Dedicated Channel:** Centralized interface in `#music-room`
 - **Player Embed:** Shows cover, duration, progress and history
 - **Reaction Controls:** Previous, Play/Pause, Skip, Stop, Shuffle, Repeat, Favorite, Leave
 - **Button Controls:** View queue, save playlist, play playlist, start radio
 
 ### Management
+
 - **/setup Command:** Automatically configures the `#music-room` channel
 - **Persisted Playlists:** Save and load playlists from SQLite database
 - **Favorites:** Favorite songs with ⭐ reaction for radio mode
@@ -26,14 +29,14 @@ A modern, intuitive and modular music bot for Discord, built with TypeScript.
 
 ## 🛠️ Stack
 
-| Category | Technology |
-|---------|-----------|
-| Runtime | Node.js 22.x |
-| Language | TypeScript 6.x (strict mode) |
-| Discord API | Discord.js v14 |
-| Audio Engine | DisTube v5 + yt-dlp |
-| Database | SQLite (better-sqlite3) |
-| Containerization | Docker + Docker Compose |
+| Category         | Technology                   |
+| ---------------- | ---------------------------- |
+| Runtime          | Node.js 22.x                 |
+| Language         | TypeScript 6.x (strict mode) |
+| Discord API      | Discord.js v14               |
+| Audio Engine     | DisTube v5 + yt-dlp          |
+| Database         | SQLite (better-sqlite3)      |
+| Containerization | Docker + Docker Compose      |
 
 ## 📁 Architecture
 
@@ -71,6 +74,7 @@ src/
 ```
 
 ### Patterns Used
+
 - **ES Modules with explicit extensions:** `import from "./file.js"`
 - **Naming:** kebab-case for files, PascalCase for interfaces
 - **Strict Typing:** No `any` (replaced with Discord.js/DisTube types)
@@ -131,6 +135,7 @@ docker-compose down
 ```
 
 Docker handles:
+
 - Node.js 22
 - FFmpeg
 - Database persistence in `./data/database.sqlite`
@@ -140,6 +145,7 @@ Docker handles:
 ### 1. Invite the Bot
 
 Use the invite link from Discord Developer Portal with permissions:
+
 - `Manage Channels`
 - `Send Messages`
 - `Embed Links`
@@ -149,6 +155,7 @@ Use the invite link from Discord Developer Portal with permissions:
 ### 2. Setup
 
 In any channel, run:
+
 ```
 /setup
 ```
@@ -158,6 +165,7 @@ The bot will automatically create the `#music-room` channel with the player.
 ### 3. Play Music
 
 In the `#music-room` channel:
+
 - **Paste a link:** YouTube, Spotify, SoundCloud
 - **Or type the name:** The bot searches on YouTube
 
@@ -177,4 +185,4 @@ Use reactions on the player embed:
 
 ---
 
-Developed by Hicones
+Developed by Hicones and Gabriel Souza
