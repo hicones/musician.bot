@@ -12,6 +12,10 @@ import { MusicManager } from "./music/music-manager";
 import { setupCommandData } from "./commands/setup";
 import { deletePlaylistCommandData } from "./commands/delete-playlist";
 import { deletePlaylistSongCommandData } from "./commands/delete-playlist-song";
+import { addCurrentToPlaylistCommandData } from "./commands/add-current-to-playlist";
+import { removeFavoriteCommandData } from "./commands/remove-favorite";
+import { exportPlaylistCommandData } from "./commands/export-playlist";
+import { importPlaylistCommandData } from "./commands/import-playlist";
 import { handleReaction } from "./handlers/reaction-handler";
 import { handleInteraction } from "./handlers/interaction-handler";
 import { formatError } from "./utils/format-error";
@@ -65,6 +69,10 @@ client.once("ready", async () => {
       setupCommandData.toJSON(),
       deletePlaylistCommandData.toJSON(),
       deletePlaylistSongCommandData.toJSON(),
+      addCurrentToPlaylistCommandData.toJSON(),
+      removeFavoriteCommandData.toJSON(),
+      exportPlaylistCommandData.toJSON(),
+      importPlaylistCommandData.toJSON(),
     ];
 
     console.log(`Registrando ${commands.length} slash command(s)...`);
